@@ -36,20 +36,40 @@ class SpeedController;
 
 class SwerveDrive : public RobotDriveBase {
  public:
-  SwerveDrive(SpeedController& left_front_motor,
-              SpeedController& left_rear_motor,
-              SpeedController& right_front_motor,
-              SpeedController& right_rear_motor);
+  SwerveDrive(SpeedController& lf_drive_motor,
+              SpeedController& lr_drive_motor,
+              SpeedController& rf_drive_motor,
+              SpeedController& rr_drive_motor,
+              SpeedController& lf_steer_motor,
+              SpeedController& lr_steer_motor,
+              SpeedController& rf_steer_motor,
+              SpeedController& rr_steer_motor,
+double frame_width,
+double frame_length,
+
+
+);
 
   ~SwerveDrive() override = default;
 
   SwerveDrive(const SwerveDrive&) = delete;
   SwerveDrive& operator=(const SwerveDrive&) = delete;
 
+  /**
+   * DriveCartesian method for Swerve platform.
+   *
+   * @param north  The robot's velocity along the forward X axis [-1.0..1.0].
+   * @param east   The robot's velocity along the right Y axis [-1.0..1.0].
+   * @param yaw    The robot's rotation rate around the Z axis in degrees/sec.
+   *               From above, positive is clockwise.
+   * @param gyro   The current angle reading from the gyro in degrees around
+   *               the Z axis. Use this to implement field-oriented controls.
+   *               From above, positive is clockwise and 0 is north.
+   */
   void DriveCartesian(double north,
                       double east,
                       double yaw,
-                      double gyro_angle = 0.0);
+                      double gyro = 0.0);
 
   void StopMotor() override;
   void GetDescription(wpi::raw_ostream& desc) const override;
@@ -57,10 +77,14 @@ class SwerveDrive : public RobotDriveBase {
   void InitSendable(SendableBuilder& builder) override;
 
  private:
-  SpeedController& m_left_front_motor;
-  SpeedController& m_left_rear_motor;
-  SpeedController& m_right_front_motor;
-  SpeedController& m_right_rear_motor;
+  SpeedController& m_lf_drive_motor;
+  SpeedController& m_lr_drive_motor;
+  SpeedController& m_rf_drive_motor;
+  SpeedController& m_rr_drive_motor;
+  SpeedController& m_lf_steer_motor;
+  SpeedController& m_lr_steer_motor;
+  SpeedController& m_rf_steer_motor;
+  SpeedController& m_rr_steer_motor;
 
   bool reported = false;
 };
