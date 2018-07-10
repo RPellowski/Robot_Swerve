@@ -7,7 +7,7 @@
 
 //#include <memory>
 
-#include <wpi/raw_ostream.h>
+//#include <wpi/raw_ostream.h>
 
 #include "Drive/RobotDriveBase.h"
 
@@ -24,8 +24,6 @@ class SpeedController;
 
 /**
  * TBD
- * Add wheel locations relative to frame
- * Add rotation motors
  * Add encoders for rotation
  * Add encoders for speed
  * Add default and settable PID values for rotation
@@ -36,22 +34,20 @@ class SpeedController;
 
 class SwerveDrive : public RobotDriveBase {
  public:
-  SwerveDrive(SpeedController& lf_drive_motor,
-              SpeedController& lr_drive_motor,
-              SpeedController& rf_drive_motor,
+  SwerveDrive(SpeedController& fl_drive_motor,
+              SpeedController& rl_drive_motor,
+              SpeedController& fr_drive_motor,
               SpeedController& rr_drive_motor,
-              SpeedController& lf_steer_motor,
-              SpeedController& lr_steer_motor,
-              SpeedController& rf_steer_motor,
+              SpeedController& fl_steer_motor,
+              SpeedController& rl_steer_motor,
+              SpeedController& fr_steer_motor,
               SpeedController& rr_steer_motor,
-double frame_width,
-double frame_length,
-
-
-);
+              double base_width,
+              double base_length);
 
   ~SwerveDrive() override = default;
 
+  // disable copy and assignment operator
   SwerveDrive(const SwerveDrive&) = delete;
   SwerveDrive& operator=(const SwerveDrive&) = delete;
 
@@ -72,20 +68,22 @@ double frame_length,
                       double gyro = 0.0);
 
   void StopMotor() override;
-  void GetDescription(wpi::raw_ostream& desc) const override;
+  //void GetDescription(wpi::raw_ostream& desc) const override;
 
   void InitSendable(SendableBuilder& builder) override;
 
  private:
-  SpeedController& m_lf_drive_motor;
-  SpeedController& m_lr_drive_motor;
-  SpeedController& m_rf_drive_motor;
+  SpeedController& m_fl_drive_motor;
+  SpeedController& m_rl_drive_motor;
+  SpeedController& m_fr_drive_motor;
   SpeedController& m_rr_drive_motor;
-  SpeedController& m_lf_steer_motor;
-  SpeedController& m_lr_steer_motor;
-  SpeedController& m_rf_steer_motor;
+  SpeedController& m_fl_steer_motor;
+  SpeedController& m_rl_steer_motor;
+  SpeedController& m_fr_steer_motor;
   SpeedController& m_rr_steer_motor;
+  double m_base_width,
+  double m_base_length,
 
-  bool reported = false;
+  //bool reported = false;
 };
 
