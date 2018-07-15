@@ -81,8 +81,8 @@ class SwerveDrive : public RobotDriveBase {
   SpeedController& m_rl_steer_motor;
   SpeedController& m_fr_steer_motor;
   SpeedController& m_rr_steer_motor;
-  double m_base_width,
-  double m_base_length,
+  double m_base_width;
+  double m_base_length;
 
   //bool reported = false;
 };

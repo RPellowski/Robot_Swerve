@@ -20,7 +20,7 @@
 #include "SmartDashboard/SendableBuilder.h"
 #include "SpeedController.h"
 
-using namespace frc;
+//using namespace frc;
 
 constexpr double kPi = 3.14159265358979323846;
 #define FL 0
@@ -51,11 +51,11 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
       m_rl_drive_motor(rl_drive_motor),
       m_fr_drive_motor(fr_drive_motor),
       m_rr_drive_motor(rr_drive_motor),
-      m_fl_drive_motor(fl_steer_motor),
-      m_rl_drive_motor(rl_steer_motor),
-      m_fr_drive_motor(fr_steer_motor),
-      m_rr_drive_motor(rr_steer_motor),
-      m_base_width(base_width);
+      m_fl_steer_motor(fl_steer_motor),
+      m_rl_steer_motor(rl_steer_motor),
+      m_fr_steer_motor(fr_steer_motor),
+      m_rr_steer_motor(rr_steer_motor),
+      m_base_width(base_width),
       m_base_length(base_length) {
   AddChild(&m_fl_drive_motor);
   AddChild(&m_rl_drive_motor);
@@ -89,16 +89,16 @@ void SwerveDrive::DriveCartesian(double north,
 //Insert logic here ---------------------
 
   double wheelSpeeds[4];
-  wheelSpeeds[LF] = 0.0
-  wheelSpeeds[LR] = 0.0
-  wheelSpeeds[RF] = 0.0
-  wheelSpeeds[RR] = 0.0
+  wheelSpeeds[FL] = 0.0;
+  wheelSpeeds[RL] = 0.0;
+  wheelSpeeds[FR] = 0.0;
+  wheelSpeeds[RR] = 0.0;
 
   double wheelAngles[4];
-  wheelAngles[LF] = 0.0
-  wheelAngles[LR] = 0.0
-  wheelAngles[RF] = 0.0
-  wheelAngles[RR] = 0.0
+  wheelAngles[FL] = 0.0;
+  wheelAngles[RL] = 0.0;
+  wheelAngles[FR] = 0.0;
+  wheelAngles[RR] = 0.0;
 
 //done Insert logic here ---------------------
 
@@ -135,6 +135,7 @@ void SwerveDrive::GetDescription(wpi::raw_ostream& desc) const {
 #endif
 
 void SwerveDrive::InitSendable(SendableBuilder& builder) {
+#if 0
   builder.SetSmartDashboardType("SwerveDrive");
   builder.AddDoubleProperty("Front Left Motor Speed",
                             [=]() { return m_fl_drive_motor.Get(); },
@@ -160,5 +161,6 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
   builder.AddDoubleProperty("Rear Right Motor Angle",
                             [=]() { return m_rr_steer_motor.Get(); },
                             [=](double value) { m_rr_steer_motor.Set(value); });
+#endif
 }
 
