@@ -12,7 +12,7 @@
 #include "SwerveDrive.h"
 
 //#include <algorithm>
-//#include <cmath>
+#include <cmath>
 
 //#include <HAL/HAL.h>
 
@@ -20,7 +20,9 @@
 #include "SmartDashboard/SendableBuilder.h"
 #include "SpeedController.h"
 
-//using namespace frc;
+#ifndef LOCAL_TEST
+using namespace frc;
+#endif
 
 constexpr double kPi = 3.14159265358979323846;
 #define FL 0
@@ -100,18 +102,36 @@ void SwerveDrive::DriveCartesian(double north,
   wheelAngles[FR] = 0.0;
   wheelAngles[RR] = 0.0;
 
+  /* Normalize(wheelSpeeds);
+void RobotDriveBase::Normalize(wpi::MutableArrayRef<double> wheelSpeeds) {
+  double maxMagnitude = std::abs(wheelSpeeds[0]);
+  for (size_t i = 1; i < wheelSpeeds.size(); i++) {
+    double temp = std::abs(wheelSpeeds[i]);
+    if (maxMagnitude < temp) {
+      maxMagnitude = temp;
+    }
+  }
+  if (maxMagnitude > 1.0) {
+    for (size_t i = 0; i < wheelSpeeds.size(); i++) {
+      wheelSpeeds[i] = wheelSpeeds[i] / maxMagnitude;
+    }
+  }
+}
+ */
+/* Scale wheel speeds */
+
 //done Insert logic here ---------------------
 
-  Normalize(wheelSpeeds);
-
-  m_fl_drive_motor.Set(wheelSpeeds[FL] * m_maxOutput);
-  m_fr_drive_motor.Set(wheelSpeeds[RL] * m_maxOutput);
-  m_rl_drive_motor.Set(wheelSpeeds[FR] * m_maxOutput);
-  m_rr_drive_motor.Set(wheelSpeeds[RR] * m_maxOutput);
+  /* Set angles first */
   m_fl_steer_motor.Set(wheelAngles[FL]);
   m_fr_steer_motor.Set(wheelAngles[RL]);
   m_rl_steer_motor.Set(wheelAngles[FR]);
   m_rr_steer_motor.Set(wheelAngles[RR]);
+
+  m_fl_drive_motor.Set(wheelSpeeds[FL]);
+  m_fr_drive_motor.Set(wheelSpeeds[RL]);
+  m_rl_drive_motor.Set(wheelSpeeds[FR]);
+  m_rr_drive_motor.Set(wheelSpeeds[RR]);
 
   m_safetyHelper.Feed();
 }
@@ -121,21 +141,23 @@ void SwerveDrive::StopMotor() {
   m_fr_drive_motor.StopMotor();
   m_rl_drive_motor.StopMotor();
   m_rr_drive_motor.StopMotor();
+
   m_fl_steer_motor.StopMotor();
   m_fr_steer_motor.StopMotor();
   m_rl_steer_motor.StopMotor();
   m_rr_steer_motor.StopMotor();
+
   m_safetyHelper.Feed();
 }
 
-#if 0
+#ifndef LOCAL_TEST
 void SwerveDrive::GetDescription(wpi::raw_ostream& desc) const {
   desc << "SwerveDrive";
 }
 #endif
 
 void SwerveDrive::InitSendable(SendableBuilder& builder) {
-#if 0
+#ifndef LOCAL_TEST
   builder.SetSmartDashboardType("SwerveDrive");
   builder.AddDoubleProperty("Front Left Motor Speed",
                             [=]() { return m_fl_drive_motor.Get(); },
@@ -161,6 +183,6 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
   builder.AddDoubleProperty("Rear Right Motor Angle",
                             [=]() { return m_rr_steer_motor.Get(); },
                             [=](double value) { m_rr_steer_motor.Set(value); });
-#endif
+#endif // LOCAL_TEST
 }
 

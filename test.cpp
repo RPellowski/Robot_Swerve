@@ -1,4 +1,5 @@
 #include <string>
+#include <cmath>
 #include <libgen.h>
 #include <pthread.h>
 #include "/home/rob/utils/dbg"
@@ -12,7 +13,7 @@ class MotorSafety {
   virtual void StopMotor() = 0;
   virtual void SetSafetyEnabled(bool enabled) = 0;
   virtual bool IsSafetyEnabled() const = 0;
-  //virtual void GetDescription() const = 0;
+  virtual void GetDescription() const = 0;
 };
 // -----------------------------------------------------------------
 class SendableBuilder;
@@ -35,8 +36,10 @@ class SendableBase : public Sendable {
  public:
   SendableBase(bool addLiveWindow = true);
   virtual ~SendableBase() override;
+  void SetName(const std::string& name) override;
   std::string GetName() const override;
-  virtual void SetSubsystem(const std::string& subsystem);
+  void SetSubsystem(const std::string& subsystem) override;
+  std::string GetSubsystem() const override;
   virtual void InitSendable(SendableBuilder& builder);
  private:
   std::string m_name;
@@ -44,9 +47,11 @@ class SendableBase : public Sendable {
 };
 SendableBase::SendableBase(bool addLiveWindow) { DBG; }
 SendableBase::~SendableBase() { DBG; }
-std::string SendableBase::GetName() const { return m_name; }
-void  SendableBase::SetSubsystem(const std::string& subsystem) { m_subsystem = subsystem; DBG; };
-void  SendableBase::InitSendable(SendableBuilder& builder) { DBG; };
+void SendableBase::SetName(const std::string& name) { m_name = name; DBG; };
+std::string SendableBase::GetName() const { DBG; return m_name; }
+void SendableBase::SetSubsystem(const std::string& subsystem) { m_subsystem = subsystem; DBG; };
+std::string SendableBase::GetSubsystem() const { DBG; return m_subsystem; }
+void SendableBase::InitSendable(SendableBuilder& builder) { DBG; };
 // -----------------------------------------------------------------
 class SendableBuilder {
 public:
@@ -96,22 +101,73 @@ bool WPI_TalonSRX::GetInverted() const { DBG; return m_inverted; };
 void WPI_TalonSRX::Disable() { DBG; };
 void WPI_TalonSRX::StopMotor() { DBG; };
 // -----------------------------------------------------------------
+class MotorSafetyHelper {
+ public:
+  MotorSafetyHelper();
+  ~MotorSafetyHelper();
+  void Feed();
+};
+MotorSafetyHelper::MotorSafetyHelper() { DBG; }
+MotorSafetyHelper::~MotorSafetyHelper() { DBG; }
+void MotorSafetyHelper::Feed() { DBG; }
+// -----------------------------------------------------------------
 class RobotDriveBase : public MotorSafety, public SendableBase {
-public:
+ public:
   int instances;
   RobotDriveBase();
   ~RobotDriveBase() override = default;
   virtual void InitSendable(SendableBuilder& builder) = 0;
   virtual void StopMotor() = 0;
-  void SetName(const char *name, int count);
+  virtual void SetName(const char *name, int count);
+  virtual void SetExpiration(double timeout);
+  virtual double GetExpiration() const;
+  virtual bool IsAlive() const;
+  virtual void SetSafetyEnabled(bool enabled);
+  virtual bool IsSafetyEnabled() const;
+  virtual void GetDescription() const;
   void AddChild(void *child);
+  MotorSafetyHelper m_safetyHelper;
 };
 RobotDriveBase::RobotDriveBase() { DBG; };
 //RobotDriveBase::~RobotDriveBase() { DBG; };
 void RobotDriveBase::SetName(const char *name, int count) { DBG; } ;
 void RobotDriveBase::AddChild(void *child) { DBG; };
-// -----------------------------------------------------------------
 
+void RobotDriveBase::SetExpiration(double timeout) { DBG; }
+double RobotDriveBase::GetExpiration() const { DBG; return 0.0; }
+bool RobotDriveBase::IsAlive() const { DBG; return false; }
+void RobotDriveBase::SetSafetyEnabled(bool enabled) { DBG; }
+bool RobotDriveBase::IsSafetyEnabled() const { DBG; return false; }
+void RobotDriveBase::GetDescription() const { DBG; }
+// -----------------------------------------------------------------
+struct Vector2d {
+  Vector2d() = default;
+  Vector2d(double x, double y);
+  void Rotate(double angle);
+  double Dot(const Vector2d& vec) const;
+  double Magnitude() const;
+  double ScalarProject(const Vector2d& vec) const;
+  double x = 0.0;
+  double y = 0.0;
+};
+Vector2d::Vector2d(double x, double y) { this->x = x; this->y = y; }
+void Vector2d::Rotate(double angle) {
+#define vPi 3.14159265358979323846
+#define vrad(d) (d * vPi / 180.0)
+  double cosA = std::cos(vrad(angle));
+  double sinA = std::sin(vrad(angle));
+  double out[2];
+  out[0] = x * cosA - y * sinA;
+  out[1] = x * sinA + y * cosA;
+  x = out[0];
+  y = out[1];
+}
+double Vector2d::Dot(const Vector2d& vec) const { return x * vec.x + y * vec.y; }
+double Vector2d::Magnitude() const { return std::sqrt(x * x + y * y); }
+double Vector2d::ScalarProject(const Vector2d& vec) const { return Dot(vec) / vec.Magnitude();
+}
+// -----------------------------------------------------------------
+#define LOCAL_TEST
 #include "SwerveDrive.h"
 #include "SwerveDrive.cpp"
 
@@ -119,7 +175,9 @@ void RobotDriveBase::AddChild(void *child) { DBG; };
 
 int main()
 {
-  //SendableBase s = SendableBase(true);
+  WPI_TalonSRX m = WPI_TalonSRX{};
+  //WPI_TalonSRX motor[8] = {WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{}};
+  //SwerveDrive s = SwerveDrive();
   printf("Hello, World!\n");
   DBG;
 }
