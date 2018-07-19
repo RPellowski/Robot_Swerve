@@ -1,3 +1,8 @@
+/*
+ * Test wrapper for Swerve Drive object
+ * Compile with
+ *  g++ -std=c++11 -o a test.cpp
+ */
 #include <string>
 #include <cmath>
 #include <libgen.h>
@@ -81,18 +86,65 @@ class SpeedController : public PIDOutput {
   virtual void StopMotor() = 0;
 };
 // -----------------------------------------------------------------
-class WPI_TalonSRX : public MotorSafety, public SpeedController {
+class TalonSRX {
+};
+// -----------------------------------------------------------------
+class WPI_TalonSRX : public virtual TalonSRX,
+    public SpeedController,
+    public SendableBase,
+    public MotorSafety {
  public:
-  virtual ~WPI_TalonSRX() = default;
+  WPI_TalonSRX(int deviceNumber);
+  virtual ~WPI_TalonSRX();
+  WPI_TalonSRX() = delete;
+  WPI_TalonSRX(WPI_TalonSRX const&) = delete;
+  WPI_TalonSRX& operator=(WPI_TalonSRX const&) = delete;
   virtual void Set(double speed);
+    virtual void PIDWrite(double output);
   virtual double Get() const;
+    virtual void Set(ControlMode mode, double value);
+    virtual void Set(ControlMode mode, double demand0, double demand1);
   virtual void SetInverted(bool isInverted);
   virtual bool GetInverted() const;
   virtual void Disable();
   virtual void StopMotor();
+    void SetExpiration(double timeout);
+    double GetExpiration() const;
+    bool IsAlive() const;
+    bool IsSafetyEnabled() const;
+    void SetSafetyEnabled(bool enabled);
+    void GetDescription(llvm::raw_ostream& desc) const;
+    virtual void InitSendable(frc::SendableBuilder& builder);
  private:
   double m_speed;
   bool m_inverted;
+    double _speed = 0;
+    std::string _desc;
+    frc::MotorSafetyHelper _safetyHelper;
+
+void WPI_TalonSRX::Set(double speed) { DBG; }
+void WPI_TalonSRX::PIDWrite(double output) { DBG; }
+double WPI_TalonSRX::Get() const { DBG; }
+void WPI_TalonSRX::Set(ControlMode mode, double value) { DBG; }
+void WPI_TalonSRX::Set(ControlMode mode, double demand0, double demand1) { DBG; }
+void WPI_TalonSRX::SetInverted(bool isInverted) { DBG; }
+bool WPI_TalonSRX::GetInverted() const { DBG; }
+void WPI_TalonSRX::Disable() { DBG; }
+void WPI_TalonSRX::StopMotor() { DBG; }
+void WPI_TalonSRX::SetExpiration(double timeout) { DBG; }
+double WPI_TalonSRX::GetExpiration() const { DBG; }
+bool WPI_TalonSRX::IsAlive() const { DBG; }
+bool WPI_TalonSRX::IsSafetyEnabled() const { DBG; }
+void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { DBG; }
+void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG; }
+void WPI_TalonSRX::InitSendable(frc::SendableBuilder& builder) { DBG; }
+
+
+
+
+
+
+
 };
 void WPI_TalonSRX::Set(double speed) { m_speed = speed; DBG; };
 double WPI_TalonSRX::Get() const { DBG; return m_speed; };
