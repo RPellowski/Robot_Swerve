@@ -4,11 +4,22 @@
  *  g++ -std=c++11 -o a test.cpp
  */
 #include <string>
+#include <ostream>
 #include <cmath>
 #include <libgen.h>
 #include <pthread.h>
 #include "/home/rob/utils/dbg"
 
+// -----------------------------------------------------------------
+namespace llvm {
+  typedef std::ostream raw_ostream;
+};
+// -----------------------------------------------------------------
+namespace wpi {
+  typedef std::ostream raw_ostream;
+};
+
+namespace frc {
 // -----------------------------------------------------------------
 class MotorSafety {
  public:
@@ -18,7 +29,7 @@ class MotorSafety {
   virtual void StopMotor() = 0;
   virtual void SetSafetyEnabled(bool enabled) = 0;
   virtual bool IsSafetyEnabled() const = 0;
-  virtual void GetDescription() const = 0;
+  virtual void GetDescription(wpi::raw_ostream& desc) const = 0;
 };
 // -----------------------------------------------------------------
 class SendableBuilder;
@@ -86,6 +97,18 @@ class SpeedController : public PIDOutput {
   virtual void StopMotor() = 0;
 };
 // -----------------------------------------------------------------
+class MotorSafetyHelper {
+ public:
+  MotorSafetyHelper();
+  ~MotorSafetyHelper();
+  void Feed();
+};
+MotorSafetyHelper::MotorSafetyHelper() { DBG; }
+MotorSafetyHelper::~MotorSafetyHelper() { DBG; }
+void MotorSafetyHelper::Feed() { DBG; }
+// -----------------------------------------------------------------
+enum class ControlMode { PercentOutput };
+// -----------------------------------------------------------------
 class TalonSRX {
 };
 // -----------------------------------------------------------------
@@ -99,6 +122,7 @@ class WPI_TalonSRX : public virtual TalonSRX,
   WPI_TalonSRX() = delete;
   WPI_TalonSRX(WPI_TalonSRX const&) = delete;
   WPI_TalonSRX& operator=(WPI_TalonSRX const&) = delete;
+#if 1
   virtual void Set(double speed);
     virtual void PIDWrite(double output);
   virtual double Get() const;
@@ -115,20 +139,25 @@ class WPI_TalonSRX : public virtual TalonSRX,
     void SetSafetyEnabled(bool enabled);
     void GetDescription(llvm::raw_ostream& desc) const;
     virtual void InitSendable(frc::SendableBuilder& builder);
+#endif
  private:
   double m_speed;
   bool m_inverted;
     double _speed = 0;
     std::string _desc;
     frc::MotorSafetyHelper _safetyHelper;
+};
 
-void WPI_TalonSRX::Set(double speed) { DBG; }
+WPI_TalonSRX::WPI_TalonSRX(int deviceNumber) { DBG; }
+WPI_TalonSRX::~WPI_TalonSRX() { DBG; }
+#if 1
+void WPI_TalonSRX::Set(double speed) { m_speed = speed; DBG; };
 void WPI_TalonSRX::PIDWrite(double output) { DBG; }
-double WPI_TalonSRX::Get() const { DBG; }
+double WPI_TalonSRX::Get() const { DBG; return m_speed; };
 void WPI_TalonSRX::Set(ControlMode mode, double value) { DBG; }
 void WPI_TalonSRX::Set(ControlMode mode, double demand0, double demand1) { DBG; }
-void WPI_TalonSRX::SetInverted(bool isInverted) { DBG; }
-bool WPI_TalonSRX::GetInverted() const { DBG; }
+void WPI_TalonSRX::SetInverted(bool isInverted) { m_inverted = isInverted; DBG; };
+bool WPI_TalonSRX::GetInverted() const { DBG; return m_inverted; };
 void WPI_TalonSRX::Disable() { DBG; }
 void WPI_TalonSRX::StopMotor() { DBG; }
 void WPI_TalonSRX::SetExpiration(double timeout) { DBG; }
@@ -138,30 +167,8 @@ bool WPI_TalonSRX::IsSafetyEnabled() const { DBG; }
 void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { DBG; }
 void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG; }
 void WPI_TalonSRX::InitSendable(frc::SendableBuilder& builder) { DBG; }
+#endif
 
-
-
-
-
-
-
-};
-void WPI_TalonSRX::Set(double speed) { m_speed = speed; DBG; };
-double WPI_TalonSRX::Get() const { DBG; return m_speed; };
-void WPI_TalonSRX::SetInverted(bool isInverted) { m_inverted = isInverted; DBG; };
-bool WPI_TalonSRX::GetInverted() const { DBG; return m_inverted; };
-void WPI_TalonSRX::Disable() { DBG; };
-void WPI_TalonSRX::StopMotor() { DBG; };
-// -----------------------------------------------------------------
-class MotorSafetyHelper {
- public:
-  MotorSafetyHelper();
-  ~MotorSafetyHelper();
-  void Feed();
-};
-MotorSafetyHelper::MotorSafetyHelper() { DBG; }
-MotorSafetyHelper::~MotorSafetyHelper() { DBG; }
-void MotorSafetyHelper::Feed() { DBG; }
 // -----------------------------------------------------------------
 class RobotDriveBase : public MotorSafety, public SendableBase {
  public:
@@ -176,7 +183,7 @@ class RobotDriveBase : public MotorSafety, public SendableBase {
   virtual bool IsAlive() const;
   virtual void SetSafetyEnabled(bool enabled);
   virtual bool IsSafetyEnabled() const;
-  virtual void GetDescription() const;
+  virtual void GetDescription(wpi::raw_ostream& desc) const;
   void AddChild(void *child);
   MotorSafetyHelper m_safetyHelper;
 };
@@ -190,7 +197,7 @@ double RobotDriveBase::GetExpiration() const { DBG; return 0.0; }
 bool RobotDriveBase::IsAlive() const { DBG; return false; }
 void RobotDriveBase::SetSafetyEnabled(bool enabled) { DBG; }
 bool RobotDriveBase::IsSafetyEnabled() const { DBG; return false; }
-void RobotDriveBase::GetDescription() const { DBG; }
+void RobotDriveBase::GetDescription(wpi::raw_ostream& desc) const { DBG; }
 // -----------------------------------------------------------------
 struct Vector2d {
   Vector2d() = default;
@@ -218,7 +225,11 @@ double Vector2d::Dot(const Vector2d& vec) const { return x * vec.x + y * vec.y; 
 double Vector2d::Magnitude() const { return std::sqrt(x * x + y * y); }
 double Vector2d::ScalarProject(const Vector2d& vec) const { return Dot(vec) / vec.Magnitude();
 }
+
+} // namespace frc
 // -----------------------------------------------------------------
+using namespace frc;
+
 #define LOCAL_TEST
 #include "SwerveDrive.h"
 #include "SwerveDrive.cpp"
@@ -227,7 +238,7 @@ double Vector2d::ScalarProject(const Vector2d& vec) const { return Dot(vec) / ve
 
 int main()
 {
-  WPI_TalonSRX m = WPI_TalonSRX{};
+  WPI_TalonSRX *m = new WPI_TalonSRX(1);
   //WPI_TalonSRX motor[8] = {WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{}};
   //SwerveDrive s = SwerveDrive();
   printf("Hello, World!\n");

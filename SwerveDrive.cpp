@@ -6,7 +6,17 @@
  * https://www.chiefdelphi.com/forums/showthread.php?p=1726937
  *  Note that if you use the WPI-compatible wrappers in a WPI drivetrain object,
  *  you are restricted to open-loop control."
-
+ *
+ *  SpeedController interface does not have a method for changing control mode
+ *  Write your own Talon wrapper implementing SpeedController that allows you
+ *   to use closed-loop control
+ *
+ * Questions:
+ *  Can we subclass RobotDriveBase/RobotDrive(deprecated)?
+ *  What motors do/do not need PID and how to manage?
+ *    inside vs outside class
+ *    velocity vs distance
+ *
  *----------------------------------------------------------------------------*/
 
 #include "SwerveDrive.h"
@@ -20,9 +30,7 @@
 #include "SmartDashboard/SendableBuilder.h"
 #include "SpeedController.h"
 
-#ifndef LOCAL_TEST
 using namespace frc;
-#endif
 
 constexpr double kPi = 3.14159265358979323846;
 #define FL 0
@@ -150,11 +158,9 @@ void SwerveDrive::StopMotor() {
   m_safetyHelper.Feed();
 }
 
-#ifndef LOCAL_TEST
 void SwerveDrive::GetDescription(wpi::raw_ostream& desc) const {
   desc << "SwerveDrive";
 }
-#endif
 
 void SwerveDrive::InitSendable(SendableBuilder& builder) {
 #ifndef LOCAL_TEST

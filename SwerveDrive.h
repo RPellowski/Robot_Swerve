@@ -11,7 +11,9 @@
 
 #include "Drive/RobotDriveBase.h"
 
+#ifndef LOCAL_TEST
 class SpeedController;
+#endif
 
 /**
  * Just as with MecanumDrive use the NED axis convention (North-East-Down)
@@ -25,7 +27,7 @@ class SpeedController;
 /**
  * TBD
  * Add encoders for rotation
- * Add encoders for speed
+ * Add encoders for speed (maybe)
  * Add default and settable PID values for rotation
  * Add default and settable PID values for speed (maybe)
  * Add Ackermann mode
@@ -68,7 +70,7 @@ class SwerveDrive : public RobotDriveBase {
                       double gyro = 0.0);
 
   void StopMotor() override;
-  //void GetDescription(wpi::raw_ostream& desc) const override;
+  void GetDescription(wpi::raw_ostream& desc) const override;
 
   void InitSendable(SendableBuilder& builder) override;
 
