@@ -9,6 +9,7 @@
 #include <libgen.h>
 #include <pthread.h>
 #include "/home/rob/utils/dbg"
+#define DBGf(a) DBGST("%f",(a))
 
 // -----------------------------------------------------------------
 namespace llvm {
@@ -120,8 +121,8 @@ class WPI_TalonSRX : public virtual TalonSRX,
   WPI_TalonSRX(int deviceNumber);
   virtual ~WPI_TalonSRX();
   WPI_TalonSRX() = delete;
-  WPI_TalonSRX(WPI_TalonSRX const&) = delete;
-  WPI_TalonSRX& operator=(WPI_TalonSRX const&) = delete;
+  WPI_TalonSRX(WPI_TalonSRX const*) = delete;
+  WPI_TalonSRX* operator=(WPI_TalonSRX const*) = delete;
 #if 1
   virtual void Set(double speed);
     virtual void PIDWrite(double output);
@@ -141,6 +142,7 @@ class WPI_TalonSRX : public virtual TalonSRX,
     virtual void InitSendable(frc::SendableBuilder& builder);
 #endif
  private:
+  int m_ID;
   double m_speed;
   bool m_inverted;
     double _speed = 0;
@@ -148,24 +150,24 @@ class WPI_TalonSRX : public virtual TalonSRX,
     frc::MotorSafetyHelper _safetyHelper;
 };
 
-WPI_TalonSRX::WPI_TalonSRX(int deviceNumber) { DBG; }
+WPI_TalonSRX::WPI_TalonSRX(int deviceNumber) { m_ID = deviceNumber; DBGST("ID %d", m_ID); }
 WPI_TalonSRX::~WPI_TalonSRX() { DBG; }
 #if 1
-void WPI_TalonSRX::Set(double speed) { m_speed = speed; DBG; };
-void WPI_TalonSRX::PIDWrite(double output) { DBG; }
-double WPI_TalonSRX::Get() const { DBG; return m_speed; };
+void WPI_TalonSRX::Set(double speed) { m_speed = speed; DBGST("ID %d speed %f", m_ID, speed); };
+void WPI_TalonSRX::PIDWrite(double output) { DBGf(output); }
+double WPI_TalonSRX::Get() const { DBGf(m_speed); return m_speed; };
 void WPI_TalonSRX::Set(ControlMode mode, double value) { DBG; }
 void WPI_TalonSRX::Set(ControlMode mode, double demand0, double demand1) { DBG; }
 void WPI_TalonSRX::SetInverted(bool isInverted) { m_inverted = isInverted; DBG; };
 bool WPI_TalonSRX::GetInverted() const { DBG; return m_inverted; };
-void WPI_TalonSRX::Disable() { DBG; }
-void WPI_TalonSRX::StopMotor() { DBG; }
-void WPI_TalonSRX::SetExpiration(double timeout) { DBG; }
+void WPI_TalonSRX::Disable() { DBGST("ID %d", m_ID); }
+void WPI_TalonSRX::StopMotor() { DBGST("ID %d ", m_ID); }
+void WPI_TalonSRX::SetExpiration(double timeout) { DBGST("ID %d timeout %f", m_ID, timeout); }
 double WPI_TalonSRX::GetExpiration() const { DBG; }
 bool WPI_TalonSRX::IsAlive() const { DBG; }
 bool WPI_TalonSRX::IsSafetyEnabled() const { DBG; }
-void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { DBG; }
-void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG; }
+void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { DBGST("ID %d enabled %d", m_ID, enabled); }
+void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG; desc << "WPI_TalonSRX"; }
 void WPI_TalonSRX::InitSendable(frc::SendableBuilder& builder) { DBG; }
 #endif
 
@@ -177,7 +179,7 @@ class RobotDriveBase : public MotorSafety, public SendableBase {
   ~RobotDriveBase() override = default;
   virtual void InitSendable(SendableBuilder& builder) = 0;
   virtual void StopMotor() = 0;
-  virtual void SetName(const char *name, int count);
+  virtual void SetName(const std::string& name, int count);
   virtual void SetExpiration(double timeout);
   virtual double GetExpiration() const;
   virtual bool IsAlive() const;
@@ -189,7 +191,7 @@ class RobotDriveBase : public MotorSafety, public SendableBase {
 };
 RobotDriveBase::RobotDriveBase() { DBG; };
 //RobotDriveBase::~RobotDriveBase() { DBG; };
-void RobotDriveBase::SetName(const char *name, int count) { DBG; } ;
+void RobotDriveBase::SetName(const std::string& name, int count) { DBGz(name.c_str()); } ;
 void RobotDriveBase::AddChild(void *child) { DBG; };
 
 void RobotDriveBase::SetExpiration(double timeout) { DBG; }
@@ -238,9 +240,18 @@ using namespace frc;
 
 int main()
 {
-  WPI_TalonSRX *m = new WPI_TalonSRX(1);
+  WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
+  WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
+  WPI_TalonSRX *m3 = new WPI_TalonSRX(3);
+  WPI_TalonSRX *m4 = new WPI_TalonSRX(4);
+  WPI_TalonSRX *m5 = new WPI_TalonSRX(5);
+  WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
+  WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
+  WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
   //WPI_TalonSRX motor[8] = {WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{}};
-  //SwerveDrive s = SwerveDrive();
-  printf("Hello, World!\n");
+  SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,12.,24.);
+  s->DriveCartesian(1.,1.,90.,0.);
+  s->StopMotor();
+  //printf("Hello, World!\n");
   DBG;
 }

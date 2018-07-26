@@ -84,13 +84,6 @@ void SwerveDrive::DriveCartesian(double north,
                                  double east,
                                  double yaw,
                                  double gyro) {
-#if 0
-  if (!reported) {
-    HAL_Report(HALUsageReporting::kResourceType_RobotDrive, 4,
-               HALUsageReporting::kRobotDrive_MecanumCartesian);
-    reported = true;
-  }
-#endif
 
   // Compensate for gyro angle. Positive rotation is counter-clockwise
   Vector2d input{north, east};
