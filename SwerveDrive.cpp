@@ -26,9 +26,7 @@
 
 //#include <HAL/HAL.h>
 
-#include "Drive/Vector2d.h"
 #include "SmartDashboard/SendableBuilder.h"
-#include "SpeedController.h"
 
 using namespace frc;
 
@@ -67,6 +65,7 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
       m_rr_steer_motor(rr_steer_motor),
       m_base_width(base_width),
       m_base_length(base_length) {
+  DBG;
   AddChild(&m_fl_drive_motor);
   AddChild(&m_rl_drive_motor);
   AddChild(&m_fr_drive_motor);
@@ -85,9 +84,9 @@ void SwerveDrive::DriveCartesian(double north,
                                  double yaw,
                                  double gyro) {
 
+  DBG;
   // Compensate for gyro angle. Positive rotation is counter-clockwise
-  Vector2d input{north, east};
-  input.Rotate(gyro);
+  RotateVector(north, east, gyro);
 
 //Insert logic here ---------------------
 
@@ -141,6 +140,7 @@ void RobotDriveBase::Normalize(wpi::MutableArrayRef<double> wheelSpeeds) {
 }
 
 void SwerveDrive::StopMotor() {
+  DBG;
   m_fl_drive_motor.StopMotor();
   m_fr_drive_motor.StopMotor();
   m_rl_drive_motor.StopMotor();
@@ -155,11 +155,13 @@ void SwerveDrive::StopMotor() {
 }
 
 void SwerveDrive::GetDescription(wpi::raw_ostream& desc) const {
+  DBG;
   desc << "SwerveDrive";
 }
 
 void SwerveDrive::InitSendable(SendableBuilder& builder) {
 
+  DBG;
   builder.SetSmartDashboardType("SwerveDrive");
   builder.AddDoubleProperty("Front Left Motor Speed",
                             [=]() { return m_fl_drive_motor.Get(); },
@@ -185,5 +187,17 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
   builder.AddDoubleProperty("Rear Right Motor Angle",
                             [=]() { return m_rr_steer_motor.Get(); },
                             [=](double value) { m_rr_steer_motor.Set(value); });
+}
+
+// Borrowed from RobotDrive
+void SwerveDrive::RotateVector(double& x, double& y, double angle) {
+  DBG;
+  double r = radians(angle);
+  double cosA = std::cos(r);
+  double sinA = std::sin(r);
+  double xOut = x * cosA - y * sinA;
+  double yOut = x * sinA + y * cosA;
+  x = xOut;
+  y = yOut;
 }
 

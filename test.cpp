@@ -7,9 +7,26 @@
 #include <ostream>
 #include <cmath>
 #include <functional>
+#include <regex>
 #include <libgen.h>
 #include <pthread.h>
 #include "/home/rob/utils/dbg"
+#undef DBGST
+#define DBGST(a,...) \
+  do { \
+    std::string f;                                                     \
+    std::regex re1("\\(.*");                                           \
+    std::regex re2(".*[ :](.*::)([^\\(]*).*");                         \
+    std::string repl1 = "";                                            \
+    std::string repl2 = "$1$2";                                        \
+    f = regex_replace(__PRETTY_FUNCTION__, re1, repl1);                \
+    f = regex_replace(f,                   re2, repl2);                \
+    fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",                 \
+      __LINE__, basename((char *)__FILE__), f.c_str(), ##__VA_ARGS__); \
+  } while (0)
+
+//    std::regex re("([^:]*::)+(.*::[^(]*)\\(.*");                          \
+
 #define DBGf(a) DBGST(#a "%f",(a))
 
 // -----------------------------------------------------------------
@@ -127,53 +144,51 @@ class WPI_TalonSRX : public virtual TalonSRX,
   WPI_TalonSRX() = delete;
   WPI_TalonSRX(WPI_TalonSRX const*) = delete;
   WPI_TalonSRX* operator=(WPI_TalonSRX const*) = delete;
-#if 1
+
   virtual void Set(double speed);
-    virtual void PIDWrite(double output);
+  virtual void PIDWrite(double output);
   virtual double Get() const;
-    virtual void Set(ControlMode mode, double value);
-    virtual void Set(ControlMode mode, double demand0, double demand1);
+  virtual void Set(ControlMode mode, double value);
+  virtual void Set(ControlMode mode, double demand0, double demand1);
   virtual void SetInverted(bool isInverted);
   virtual bool GetInverted() const;
   virtual void Disable();
   virtual void StopMotor();
-    void SetExpiration(double timeout);
-    double GetExpiration() const;
-    bool IsAlive() const;
-    bool IsSafetyEnabled() const;
-    void SetSafetyEnabled(bool enabled);
-    void GetDescription(llvm::raw_ostream& desc) const;
-    virtual void InitSendable(frc::SendableBuilder& builder);
-#endif
+  void SetExpiration(double timeout);
+  double GetExpiration() const;
+  bool IsAlive() const;
+  bool IsSafetyEnabled() const;
+  void SetSafetyEnabled(bool enabled);
+  void GetDescription(llvm::raw_ostream& desc) const;
+  virtual void InitSendable(frc::SendableBuilder& builder);
  private:
   int m_ID;
-  double m_speed;
-  bool m_inverted;
-    double _speed = 0;
-    std::string _desc;
-    frc::MotorSafetyHelper _safetyHelper;
+  bool _invert;
+  double _speed = 0;
+  std::string _desc;
+  frc::MotorSafetyHelper _safetyHelper;
 };
 
-WPI_TalonSRX::WPI_TalonSRX(int deviceNumber) { m_ID = deviceNumber; DBGST("ID %d", m_ID); }
-WPI_TalonSRX::~WPI_TalonSRX() { DBG; }
-#if 1
-void WPI_TalonSRX::Set(double speed) { m_speed = speed; DBGST("ID %d speed %f", m_ID, speed); };
-void WPI_TalonSRX::PIDWrite(double output) { DBGf(output); }
-double WPI_TalonSRX::Get() const { DBGf(m_speed); return m_speed; };
-void WPI_TalonSRX::Set(ControlMode mode, double value) { DBG; }
-void WPI_TalonSRX::Set(ControlMode mode, double demand0, double demand1) { DBG; }
-void WPI_TalonSRX::SetInverted(bool isInverted) { m_inverted = isInverted; DBG; };
-bool WPI_TalonSRX::GetInverted() const { DBG; return m_inverted; };
-void WPI_TalonSRX::Disable() { DBGST("ID %d", m_ID); }
-void WPI_TalonSRX::StopMotor() { DBGST("ID %d ", m_ID); }
-void WPI_TalonSRX::SetExpiration(double timeout) { DBGST("ID %d timeout %f", m_ID, timeout); }
-double WPI_TalonSRX::GetExpiration() const { DBG; }
-bool WPI_TalonSRX::IsAlive() const { DBG; }
-bool WPI_TalonSRX::IsSafetyEnabled() const { DBG; }
-void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { DBGST("ID %d enabled %d", m_ID, enabled); }
-void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG; desc << "WPI_TalonSRX"; }
-void WPI_TalonSRX::InitSendable(frc::SendableBuilder& builder) { DBG; }
-#endif
+#define DBG_SRX(a,...) DBGST("ID %d " a, m_ID, ##__VA_ARGS__)
+WPI_TalonSRX::WPI_TalonSRX(int deviceNumber) { m_ID = deviceNumber; DBG_SRX(""); }
+WPI_TalonSRX::~WPI_TalonSRX() { DBG_SRX(""); }
+
+void WPI_TalonSRX::Set(double speed) { _speed = speed; DBG_SRX("speed %f", speed); };
+void WPI_TalonSRX::PIDWrite(double output) { DBG_SRX("output %f", output); }
+double WPI_TalonSRX::Get() const { DBG_SRX("speed %f", _speed); return _speed; };
+void WPI_TalonSRX::Set(ControlMode mode, double value) { DBG_SRX(""); }
+void WPI_TalonSRX::Set(ControlMode mode, double demand0, double demand1) { DBG_SRX(""); }
+void WPI_TalonSRX::SetInverted(bool isInverted) { _invert = isInverted; DBG_SRX("isInverted %d", _invert); };
+bool WPI_TalonSRX::GetInverted() const { DBG_SRX("isInverted %d", _invert); return _invert; };
+void WPI_TalonSRX::Disable() { DBG_SRX(""); }
+void WPI_TalonSRX::StopMotor() { DBG_SRX(""); }
+void WPI_TalonSRX::SetExpiration(double timeout) { DBG_SRX("timeout %f", timeout); }
+double WPI_TalonSRX::GetExpiration() const { DBG_SRX(""); }
+bool WPI_TalonSRX::IsAlive() const { DBG_SRX(""); }
+bool WPI_TalonSRX::IsSafetyEnabled() const { DBG_SRX(""); }
+void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { DBG_SRX("enabled %d", enabled); }
+void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG_SRX(""); desc << "WPI_TalonSRX"; }
+void WPI_TalonSRX::InitSendable(frc::SendableBuilder& builder) { DBG_SRX(""); }
 
 // -----------------------------------------------------------------
 class RobotDriveBase : public MotorSafety, public SendableBase {
