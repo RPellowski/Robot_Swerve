@@ -129,6 +129,9 @@ void RobotDriveBase::Normalize(wpi::MutableArrayRef<double> wheelSpeeds) {
   m_rl_steer_motor.Set(wheelAngles[FR]);
   m_rr_steer_motor.Set(wheelAngles[RR]);
 
+// Verify that wheels are accurately positioned
+
+// if every wheel is within tolerance {
   m_fl_drive_motor.Set(wheelSpeeds[FL]);
   m_fr_drive_motor.Set(wheelSpeeds[RL]);
   m_rl_drive_motor.Set(wheelSpeeds[FR]);
@@ -156,7 +159,7 @@ void SwerveDrive::GetDescription(wpi::raw_ostream& desc) const {
 }
 
 void SwerveDrive::InitSendable(SendableBuilder& builder) {
-#ifndef LOCAL_TEST
+
   builder.SetSmartDashboardType("SwerveDrive");
   builder.AddDoubleProperty("Front Left Motor Speed",
                             [=]() { return m_fl_drive_motor.Get(); },
@@ -182,6 +185,5 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
   builder.AddDoubleProperty("Rear Right Motor Angle",
                             [=]() { return m_rr_steer_motor.Get(); },
                             [=](double value) { m_rr_steer_motor.Set(value); });
-#endif // LOCAL_TEST
 }
 

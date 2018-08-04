@@ -6,10 +6,11 @@
 #include <string>
 #include <ostream>
 #include <cmath>
+#include <functional>
 #include <libgen.h>
 #include <pthread.h>
 #include "/home/rob/utils/dbg"
-#define DBGf(a) DBGST("%f",(a))
+#define DBGf(a) DBGST(#a "%f",(a))
 
 // -----------------------------------------------------------------
 namespace llvm {
@@ -64,23 +65,26 @@ class SendableBase : public Sendable {
 };
 SendableBase::SendableBase(bool addLiveWindow) { DBG; }
 SendableBase::~SendableBase() { DBG; }
-void SendableBase::SetName(const std::string& name) { m_name = name; DBG; };
-std::string SendableBase::GetName() const { DBG; return m_name; }
-void SendableBase::SetSubsystem(const std::string& subsystem) { m_subsystem = subsystem; DBG; };
-std::string SendableBase::GetSubsystem() const { DBG; return m_subsystem; }
+void SendableBase::SetName(const std::string& name) { m_name = name; DBGz(name.c_str()); };
+std::string SendableBase::GetName() const { DBGz(m_name.c_str()); return m_name; }
+void SendableBase::SetSubsystem(const std::string& subsystem) { m_subsystem = subsystem; DBGz(subsystem.c_str()); };
+std::string SendableBase::GetSubsystem() const { DBGz(m_subsystem.c_str()); return m_subsystem; }
 void SendableBase::InitSendable(SendableBuilder& builder) { DBG; };
 // -----------------------------------------------------------------
 class SendableBuilder {
 public:
   SendableBuilder();
   virtual ~SendableBuilder() = default;
-  void SetSmartDashboardType();
-  void AddDoubleProperty();
+  void SetSmartDashboardType(const std::string& name);
+  void AddDoubleProperty(const std::string& key,
+      std::function<double()> getter, std::function<void(double)> setter);
 };
 SendableBuilder::SendableBuilder() { DBG; };
 //SendableBuilder::~SendableBuilder() { DBG; };
-void SendableBuilder::SetSmartDashboardType() { DBG; };
-void SendableBuilder::AddDoubleProperty() { DBG; };
+void SendableBuilder::SetSmartDashboardType(const std::string& name) { DBGz(name.c_str()); };
+void SendableBuilder::AddDoubleProperty(const std::string& key,
+    std::function<double()> getter, std::function<void(double)> setter) { DBGz(key.c_str()); };
+
 // -----------------------------------------------------------------
 class PIDOutput {
  public:
