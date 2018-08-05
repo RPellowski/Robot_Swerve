@@ -1,3 +1,7 @@
+/*To Do
+ * WPI_TalonSRX add BaseMotorController into constructor
+ * WPI_TalonSRX fill in PIDWrite
+ */
 /*
  * Test wrapper for Swerve Drive object
  * Compile with
@@ -8,8 +12,9 @@
 #include <cmath>
 #include <functional>
 #include <regex>
+#include <chrono>
 #include <libgen.h>
-#include <pthread.h>
+//#include <pthread.h>
 #include "/home/rob/utils/dbg"
 #undef DBGST
 #define DBGST(a,...) \
@@ -28,7 +33,15 @@
 //    std::regex re("([^:]*::)+(.*::[^(]*)\\(.*");                          \
 
 #define DBGf(a) DBGST(#a "%f",(a))
-
+#if 0
+int main()
+{
+  using namespace std::chrono;
+  steady_clock::duration dur{steady_clock::now().time_since_epoch()};
+  uint64_t ticks = duration_cast<milliseconds>(dur).count();
+  printf("Time: %lx\n", ticks);
+}
+#else
 // -----------------------------------------------------------------
 namespace llvm {
   typedef std::ostream raw_ostream;
@@ -40,6 +53,7 @@ namespace wpi {
 
 namespace frc {
 // -----------------------------------------------------------------
+#define DEFAULT_SAFETY_EXPIRATION 0.1
 class MotorSafety {
  public:
   virtual void SetExpiration(double timeout) = 0;
@@ -119,20 +133,79 @@ class SpeedController : public PIDOutput {
   virtual void StopMotor() = 0;
 };
 // -----------------------------------------------------------------
+class Timer {
+ public:
+  static uint32_t GetFPGATimestamp();
+};
+uint32_t Timer::GetFPGATimestamp() {
+  using namespace std::chrono;
+  steady_clock::duration dur{steady_clock::now().time_since_epoch()};
+  uint64_t ticks = duration_cast<milliseconds>(dur).count();
+  return (uint32_t)(ticks & 0xffffffff);
+}
+// -----------------------------------------------------------------
 class MotorSafetyHelper {
  public:
-  MotorSafetyHelper();
+  explicit MotorSafetyHelper(MotorSafety* safeObject);
   ~MotorSafetyHelper();
   void Feed();
+  void SetExpiration(double expirationTime);
+  double GetExpiration() const;
+  bool IsAlive() const;
+  void Check();
+  void SetSafetyEnabled(bool enabled);
+  bool IsSafetyEnabled() const;
+  static void CheckMotors();
+ private:
+  double m_expiration;
+  bool m_enabled;
+  double m_stopTime;
+  MotorSafety* m_safeObject;
 };
-MotorSafetyHelper::MotorSafetyHelper() { DBG; }
+
+MotorSafetyHelper::MotorSafetyHelper(MotorSafety* safeObject)
+    : m_safeObject(safeObject) {
+  DBG;
+  m_enabled = false;
+  m_expiration = DEFAULT_SAFETY_EXPIRATION;
+  m_stopTime = Timer::GetFPGATimestamp();
+}
 MotorSafetyHelper::~MotorSafetyHelper() { DBG; }
-void MotorSafetyHelper::Feed() { DBG; }
+
+void MotorSafetyHelper::Feed() { DBG; m_stopTime = Timer::GetFPGATimestamp() + m_expiration; }
+void MotorSafetyHelper::SetExpiration(double expirationTime) { DBG; m_expiration = expirationTime; }
+double MotorSafetyHelper::GetExpiration() const { DBG; return m_expiration; }
+bool MotorSafetyHelper::IsAlive() const { bool b = !m_enabled || m_stopTime > Timer::GetFPGATimestamp();
+  DBGST("isAlive %d ", b); return b; }
+void MotorSafetyHelper::Check() {
+  bool enabled;
+  double stopTime;
+  DBG;
+  enabled = m_enabled;
+  stopTime = m_stopTime;
+  if (!enabled) return;
+  if (stopTime < Timer::GetFPGATimestamp()) { m_safeObject->StopMotor(); }
+}
+void MotorSafetyHelper::SetSafetyEnabled(bool enabled) { DBGST("enabled %d", enabled); m_enabled = enabled; }
+bool MotorSafetyHelper::IsSafetyEnabled() const { DBGST("isSafety %d", m_enabled); return m_enabled; }
+void MotorSafetyHelper::CheckMotors() { DBG; }
+
 // -----------------------------------------------------------------
 enum class ControlMode { PercentOutput };
 // -----------------------------------------------------------------
+#define DBG_SRX(a,...) DBGST("ID %d " a, m_ID, ##__VA_ARGS__)
 class TalonSRX {
+ public:
+  TalonSRX(int deviceNumber);
+  virtual ~TalonSRX();
+  TalonSRX() = delete;
+  TalonSRX(TalonSRX const*) = delete;
+  TalonSRX* operator=(TalonSRX const*) = delete;
+ protected:
+  int m_ID;
 };
+TalonSRX::TalonSRX(int deviceNumber) { m_ID = deviceNumber; DBG_SRX(""); }
+TalonSRX::~TalonSRX() { DBG_SRX(""); }
 // -----------------------------------------------------------------
 class WPI_TalonSRX : public virtual TalonSRX,
     public SpeedController,
@@ -162,15 +235,17 @@ class WPI_TalonSRX : public virtual TalonSRX,
   void GetDescription(llvm::raw_ostream& desc) const;
   virtual void InitSendable(frc::SendableBuilder& builder);
  private:
-  int m_ID;
   bool _invert;
   double _speed = 0;
   std::string _desc;
   frc::MotorSafetyHelper _safetyHelper;
 };
 
-#define DBG_SRX(a,...) DBGST("ID %d " a, m_ID, ##__VA_ARGS__)
-WPI_TalonSRX::WPI_TalonSRX(int deviceNumber) { m_ID = deviceNumber; DBG_SRX(""); }
+WPI_TalonSRX::WPI_TalonSRX(int deviceNumber) :
+TalonSRX(deviceNumber),
+//BaseMotorController()
+_safetyHelper(this)
+ { m_ID = deviceNumber; DBG_SRX(""); }
 WPI_TalonSRX::~WPI_TalonSRX() { DBG_SRX(""); }
 
 void WPI_TalonSRX::Set(double speed) { _speed = speed; DBG_SRX("speed %f", speed); };
@@ -178,16 +253,16 @@ void WPI_TalonSRX::PIDWrite(double output) { DBG_SRX("output %f", output); }
 double WPI_TalonSRX::Get() const { DBG_SRX("speed %f", _speed); return _speed; };
 void WPI_TalonSRX::Set(ControlMode mode, double value) { DBG_SRX(""); }
 void WPI_TalonSRX::Set(ControlMode mode, double demand0, double demand1) { DBG_SRX(""); }
-void WPI_TalonSRX::SetInverted(bool isInverted) { _invert = isInverted; DBG_SRX("isInverted %d", _invert); };
+void WPI_TalonSRX::SetInverted(bool isInverted) { _invert = isInverted; DBG_SRX("invert %d", _invert); };
 bool WPI_TalonSRX::GetInverted() const { DBG_SRX("isInverted %d", _invert); return _invert; };
 void WPI_TalonSRX::Disable() { DBG_SRX(""); }
 void WPI_TalonSRX::StopMotor() { DBG_SRX(""); }
-void WPI_TalonSRX::SetExpiration(double timeout) { DBG_SRX("timeout %f", timeout); }
-double WPI_TalonSRX::GetExpiration() const { DBG_SRX(""); }
-bool WPI_TalonSRX::IsAlive() const { DBG_SRX(""); }
-bool WPI_TalonSRX::IsSafetyEnabled() const { DBG_SRX(""); }
-void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { DBG_SRX("enabled %d", enabled); }
-void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG_SRX(""); desc << "WPI_TalonSRX"; }
+void WPI_TalonSRX::SetExpiration(double timeout) { DBG_SRX("timeout %f", timeout); _safetyHelper.SetExpiration(timeout); }
+double WPI_TalonSRX::GetExpiration() const { double e = _safetyHelper.GetExpiration(); DBG_SRX("%f", e); return e; }
+bool WPI_TalonSRX::IsAlive() const { bool b = _safetyHelper.IsAlive(); DBG_SRX("isAlive %d", b); return b; }
+bool WPI_TalonSRX::IsSafetyEnabled() const { bool b = _safetyHelper.IsSafetyEnabled(); DBG_SRX("isSafety %d", b); return b; }
+void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { _safetyHelper.SetSafetyEnabled(enabled); DBG_SRX("enabled %d", enabled); }
+void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG_SRX("desc %s", _desc.c_str()); desc << _desc.c_str(); }
 void WPI_TalonSRX::InitSendable(frc::SendableBuilder& builder) { DBG_SRX(""); }
 
 // -----------------------------------------------------------------
@@ -206,9 +281,9 @@ class RobotDriveBase : public MotorSafety, public SendableBase {
   virtual bool IsSafetyEnabled() const;
   virtual void GetDescription(wpi::raw_ostream& desc) const;
   void AddChild(void *child);
-  MotorSafetyHelper m_safetyHelper;
+  MotorSafetyHelper m_safetyHelper{this};
 };
-RobotDriveBase::RobotDriveBase() { DBG; };
+RobotDriveBase::RobotDriveBase() { DBG; m_safetyHelper.SetSafetyEnabled(true); };
 //RobotDriveBase::~RobotDriveBase() { DBG; };
 void RobotDriveBase::SetName(const std::string& name, int count) { DBGz(name.c_str()); } ;
 void RobotDriveBase::AddChild(void *child) { DBG; };
@@ -220,6 +295,7 @@ void RobotDriveBase::SetSafetyEnabled(bool enabled) { DBG; }
 bool RobotDriveBase::IsSafetyEnabled() const { DBG; return false; }
 void RobotDriveBase::GetDescription(wpi::raw_ostream& desc) const { DBG; }
 // -----------------------------------------------------------------
+#if 0
 struct Vector2d {
   Vector2d() = default;
   Vector2d(double x, double y);
@@ -246,7 +322,7 @@ double Vector2d::Dot(const Vector2d& vec) const { return x * vec.x + y * vec.y; 
 double Vector2d::Magnitude() const { return std::sqrt(x * x + y * y); }
 double Vector2d::ScalarProject(const Vector2d& vec) const { return Dot(vec) / vec.Magnitude();
 }
-
+#endif
 } // namespace frc
 // -----------------------------------------------------------------
 using namespace frc;
@@ -274,3 +350,4 @@ int main()
   //printf("Hello, World!\n");
   DBG;
 }
+#endif
