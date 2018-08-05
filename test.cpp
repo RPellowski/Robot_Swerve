@@ -5,7 +5,7 @@
 /*
  * Test wrapper for Swerve Drive object
  * Compile with
- *  g++ -std=c++11 -o a test.cpp
+ *  g++ -std=c++11 -o test test.cpp
  */
 #include <string>
 #include <ostream>
@@ -14,6 +14,7 @@
 #include <regex>
 #include <chrono>
 #include <libgen.h>
+#include <stdio.h>
 #include "/home/rob/utils/dbg"
 #undef DBGST
 #define DBGST(a,...) \
@@ -30,15 +31,6 @@
   } while (0)
 
 #define DBGf(a) DBGST(#a "%f",(a))
-#if 0
-int main()
-{
-  using namespace std::chrono;
-  steady_clock::duration dur{steady_clock::now().time_since_epoch()};
-  uint64_t ticks = duration_cast<milliseconds>(dur).count();
-  printf("Time: %lx\n", ticks);
-}
-#else
 // -----------------------------------------------------------------
 namespace llvm {
   typedef std::ostream raw_ostream;
@@ -167,8 +159,9 @@ MotorSafetyHelper::MotorSafetyHelper(MotorSafety* safeObject)
 MotorSafetyHelper::~MotorSafetyHelper() { DBG; }
 
 void MotorSafetyHelper::Feed() { DBG; m_stopTime = Timer::GetFPGATimestamp() + m_expiration; }
-void MotorSafetyHelper::SetExpiration(double expirationTime) { DBG; m_expiration = expirationTime; }
-double MotorSafetyHelper::GetExpiration() const { DBG; return m_expiration; }
+void MotorSafetyHelper::SetExpiration(double expirationTime) { DBGST("expiration %f", expirationTime);
+  m_expiration = expirationTime; }
+double MotorSafetyHelper::GetExpiration() const { DBGST("expiration %f", m_expiration); return m_expiration; }
 bool MotorSafetyHelper::IsAlive() const { bool b = !m_enabled || m_stopTime > Timer::GetFPGATimestamp();
   DBGST("isAlive %d ", b); return b; }
 void MotorSafetyHelper::Check() {
@@ -180,7 +173,7 @@ void MotorSafetyHelper::Check() {
   if (!enabled) return;
   if (stopTime < Timer::GetFPGATimestamp()) { m_safeObject->StopMotor(); }
 }
-void MotorSafetyHelper::SetSafetyEnabled(bool enabled) { DBGST("enabled %d", enabled); m_enabled = enabled; }
+void MotorSafetyHelper::SetSafetyEnabled(bool enabled) { DBGST("safety %d", enabled); m_enabled = enabled; }
 bool MotorSafetyHelper::IsSafetyEnabled() const { DBGST("isSafety %d", m_enabled); return m_enabled; }
 void MotorSafetyHelper::CheckMotors() { DBG; }
 
@@ -237,9 +230,18 @@ class WPI_TalonSRX : public virtual TalonSRX,
 
 WPI_TalonSRX::WPI_TalonSRX(int deviceNumber) :
 TalonSRX(deviceNumber),
+//need SpeedController and SendableBase?
 //BaseMotorController()
 _safetyHelper(this)
- { m_ID = deviceNumber; DBG_SRX(""); }
+ { DBG_SRX("");
+    std::stringstream work;
+    work << "Talon SRX " << deviceNumber;
+    _desc = work.str();
+    /* prep motor safety */
+    _safetyHelper.SetExpiration(0.0);
+    _safetyHelper.SetSafetyEnabled(false);
+    SetName(_desc);
+ }
 WPI_TalonSRX::~WPI_TalonSRX() { DBG_SRX(""); }
 
 void WPI_TalonSRX::Set(double speed) { _speed = speed; DBG_SRX("speed %f", speed); };
@@ -312,8 +314,6 @@ using namespace frc;
 #include "SwerveDrive.h"
 #include "SwerveDrive.cpp"
 
-#include <stdio.h>
-
 int main()
 {
   WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
@@ -327,6 +327,15 @@ int main()
   SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,12.,24.);
   s->DriveCartesian(1.,1.,90.,0.);
   s->StopMotor();
+  delete s;
+  delete m1;
+  delete m2;
+  delete m3;
+  delete m4;
+  delete m5;
+  delete m6;
+  delete m7;
+  delete m8;
   DBG;
 }
-#endif
+

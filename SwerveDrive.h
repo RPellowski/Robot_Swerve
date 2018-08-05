@@ -5,10 +5,6 @@
 
 #pragma once
 
-//#include <memory>
-
-//#include <wpi/raw_ostream.h>
-
 #include "Drive/RobotDriveBase.h"
 #include "SpeedController.h"
 
@@ -26,11 +22,22 @@
  * Add encoders for rotation
  * Add encoders for speed (for kinematics)
  * Add default and settable PID values for rotation
+ * Add compensation for rotation near discontinuity (0/360)
+ * Add compensation for speed inverted instead of rotation of 180
  * Add default and settable PID values for speed (maybe)
  * Add Ackermann mode
  * Add reverse kinematics for calculation of location
  * Add (non-linear) scaling on inputs
  * Add scaling on outputs
+ * Enable motor safety? where?
+ * Test mode
+ *  Single wheel direction
+ *  Single wheel speed
+ *  All wheels same direction
+ * Autonomous
+ *  Drive around point with rotation
+ *  Drive around point with no rotation
+ *
  */
 
 class SwerveDrive : public RobotDriveBase {

@@ -19,14 +19,15 @@
  *
  *----------------------------------------------------------------------------*/
 
-#include "SwerveDrive.h"
-
-//#include <algorithm>
 #include <cmath>
 
-//#include <HAL/HAL.h>
-
+#include "SwerveDrive.h"
 #include "SmartDashboard/SendableBuilder.h"
+
+#ifndef LOCAL_TEST
+#define DBG
+#define DBGST(a,...)
+#endif
 
 using namespace frc;
 
