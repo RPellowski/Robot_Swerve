@@ -29,6 +29,8 @@
  * Add default and settable PID values for speed (maybe)
  * Add Ackermann mode
  * Add reverse kinematics for calculation of location
+ * Add (non-linear) scaling on inputs
+ * Add scaling on outputs
  */
 
 class SwerveDrive : public RobotDriveBase {

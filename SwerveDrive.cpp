@@ -84,7 +84,7 @@ void SwerveDrive::DriveCartesian(double north,
                                  double yaw,
                                  double gyro) {
 
-  DBG;
+  DBGST("north %f east %f yaw %f gyro %f", north, east, yaw, gyro);
   // Compensate for gyro angle. Positive rotation is counter-clockwise
   RotateVector(north, east, gyro);
 
@@ -102,23 +102,8 @@ void SwerveDrive::DriveCartesian(double north,
   wheelAngles[FR] = 0.0;
   wheelAngles[RR] = 0.0;
 
-  /* Normalize(wheelSpeeds);
-void RobotDriveBase::Normalize(wpi::MutableArrayRef<double> wheelSpeeds) {
-  double maxMagnitude = std::abs(wheelSpeeds[0]);
-  for (size_t i = 1; i < wheelSpeeds.size(); i++) {
-    double temp = std::abs(wheelSpeeds[i]);
-    if (maxMagnitude < temp) {
-      maxMagnitude = temp;
-    }
-  }
-  if (maxMagnitude > 1.0) {
-    for (size_t i = 0; i < wheelSpeeds.size(); i++) {
-      wheelSpeeds[i] = wheelSpeeds[i] / maxMagnitude;
-    }
-  }
-}
- */
-/* Scale wheel speeds */
+  /* Scale wheel speeds */
+  Normalize(wheelSpeeds);
 
 //done Insert logic here ---------------------
 
@@ -191,7 +176,7 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
 
 // Borrowed from RobotDrive
 void SwerveDrive::RotateVector(double& x, double& y, double angle) {
-  DBG;
+  DBGST("IN  x %f y %f angle %f", x, y, angle);
   double r = radians(angle);
   double cosA = std::cos(r);
   double sinA = std::sin(r);
@@ -199,5 +184,6 @@ void SwerveDrive::RotateVector(double& x, double& y, double angle) {
   double yOut = x * sinA + y * cosA;
   x = xOut;
   y = yOut;
+  DBGST("OUT x %f y %f", x, y);
 }
 

@@ -14,7 +14,6 @@
 #include <regex>
 #include <chrono>
 #include <libgen.h>
-//#include <pthread.h>
 #include "/home/rob/utils/dbg"
 #undef DBGST
 #define DBGST(a,...) \
@@ -29,8 +28,6 @@
     fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",                 \
       __LINE__, basename((char *)__FILE__), f.c_str(), ##__VA_ARGS__); \
   } while (0)
-
-//    std::regex re("([^:]*::)+(.*::[^(]*)\\(.*");                          \
 
 #define DBGf(a) DBGST(#a "%f",(a))
 #if 0
@@ -50,7 +47,6 @@ namespace llvm {
 namespace wpi {
   typedef std::ostream raw_ostream;
 };
-
 namespace frc {
 // -----------------------------------------------------------------
 #define DEFAULT_SAFETY_EXPIRATION 0.1
@@ -111,7 +107,6 @@ public:
       std::function<double()> getter, std::function<void(double)> setter);
 };
 SendableBuilder::SendableBuilder() { DBG; };
-//SendableBuilder::~SendableBuilder() { DBG; };
 void SendableBuilder::SetSmartDashboardType(const std::string& name) { DBGz(name.c_str()); };
 void SendableBuilder::AddDoubleProperty(const std::string& key,
     std::function<double()> getter, std::function<void(double)> setter) { DBGz(key.c_str()); };
@@ -133,8 +128,7 @@ class SpeedController : public PIDOutput {
   virtual void StopMotor() = 0;
 };
 // -----------------------------------------------------------------
-class Timer {
- public:
+struct Timer {
   static uint32_t GetFPGATimestamp();
 };
 uint32_t Timer::GetFPGATimestamp() {
@@ -281,10 +275,10 @@ class RobotDriveBase : public MotorSafety, public SendableBase {
   virtual bool IsSafetyEnabled() const;
   virtual void GetDescription(wpi::raw_ostream& desc) const;
   void AddChild(void *child);
+  virtual void Normalize(double wheelSpeeds[], size_t size);
   MotorSafetyHelper m_safetyHelper{this};
 };
 RobotDriveBase::RobotDriveBase() { DBG; m_safetyHelper.SetSafetyEnabled(true); };
-//RobotDriveBase::~RobotDriveBase() { DBG; };
 void RobotDriveBase::SetName(const std::string& name, int count) { DBGz(name.c_str()); } ;
 void RobotDriveBase::AddChild(void *child) { DBG; };
 
@@ -294,35 +288,22 @@ bool RobotDriveBase::IsAlive() const { DBG; return false; }
 void RobotDriveBase::SetSafetyEnabled(bool enabled) { DBG; }
 bool RobotDriveBase::IsSafetyEnabled() const { DBG; return false; }
 void RobotDriveBase::GetDescription(wpi::raw_ostream& desc) const { DBG; }
-// -----------------------------------------------------------------
-#if 0
-struct Vector2d {
-  Vector2d() = default;
-  Vector2d(double x, double y);
-  void Rotate(double angle);
-  double Dot(const Vector2d& vec) const;
-  double Magnitude() const;
-  double ScalarProject(const Vector2d& vec) const;
-  double x = 0.0;
-  double y = 0.0;
-};
-Vector2d::Vector2d(double x, double y) { this->x = x; this->y = y; }
-void Vector2d::Rotate(double angle) {
-#define vPi 3.14159265358979323846
-#define vrad(d) (d * vPi / 180.0)
-  double cosA = std::cos(vrad(angle));
-  double sinA = std::sin(vrad(angle));
-  double out[2];
-  out[0] = x * cosA - y * sinA;
-  out[1] = x * sinA + y * cosA;
-  x = out[0];
-  y = out[1];
+void RobotDriveBase::Normalize(double wheelSpeeds[], size_t size = 4) {
+  double maxMagnitude = std::abs(wheelSpeeds[0]);
+  for (size_t i = 1; i < size; i++) {
+    double temp = std::abs(wheelSpeeds[i]);
+    if (maxMagnitude < temp) {
+      maxMagnitude = temp;
+    }
+  }
+  DBGST("magnitude %f", maxMagnitude);
+  if (maxMagnitude > 1.0) {
+    for (size_t i = 0; i < size; i++) {
+      wheelSpeeds[i] = wheelSpeeds[i] / maxMagnitude;
+    }
+  }
 }
-double Vector2d::Dot(const Vector2d& vec) const { return x * vec.x + y * vec.y; }
-double Vector2d::Magnitude() const { return std::sqrt(x * x + y * y); }
-double Vector2d::ScalarProject(const Vector2d& vec) const { return Dot(vec) / vec.Magnitude();
-}
-#endif
+
 } // namespace frc
 // -----------------------------------------------------------------
 using namespace frc;
@@ -343,11 +324,9 @@ int main()
   WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
   WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
   WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
-  //WPI_TalonSRX motor[8] = {WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{},WPI_TalonSRX{}};
   SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,12.,24.);
   s->DriveCartesian(1.,1.,90.,0.);
   s->StopMotor();
-  //printf("Hello, World!\n");
   DBG;
 }
 #endif
