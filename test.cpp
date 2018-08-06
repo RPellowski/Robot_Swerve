@@ -257,7 +257,7 @@ void WPI_TalonSRX::SetExpiration(double timeout) { DBG_SRX("timeout %f", timeout
 double WPI_TalonSRX::GetExpiration() const { double e = _safetyHelper.GetExpiration(); DBG_SRX("%f", e); return e; }
 bool WPI_TalonSRX::IsAlive() const { bool b = _safetyHelper.IsAlive(); DBG_SRX("isAlive %d", b); return b; }
 bool WPI_TalonSRX::IsSafetyEnabled() const { bool b = _safetyHelper.IsSafetyEnabled(); DBG_SRX("isSafety %d", b); return b; }
-void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { _safetyHelper.SetSafetyEnabled(enabled); DBG_SRX("enabled %d", enabled); }
+void WPI_TalonSRX::SetSafetyEnabled(bool enabled) { _safetyHelper.SetSafetyEnabled(enabled); DBG_SRX("setSafety %d", enabled); }
 void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG_SRX("desc %s", _desc.c_str()); desc << _desc.c_str(); }
 void WPI_TalonSRX::InitSendable(frc::SendableBuilder& builder) { DBG_SRX(""); }
 
@@ -267,16 +267,16 @@ class RobotDriveBase : public MotorSafety, public SendableBase {
   int instances;
   RobotDriveBase();
   ~RobotDriveBase() override = default;
-  virtual void InitSendable(SendableBuilder& builder) = 0;
-  virtual void StopMotor() = 0;
+  //virtual void InitSendable(SendableBuilder& builder) = 0;
   virtual void SetName(const std::string& name, int count);
+  void AddChild(void *child);
   virtual void SetExpiration(double timeout);
   virtual double GetExpiration() const;
+  virtual void StopMotor() = 0;
   virtual bool IsAlive() const;
-  virtual void SetSafetyEnabled(bool enabled);
   virtual bool IsSafetyEnabled() const;
+  virtual void SetSafetyEnabled(bool enabled);
   virtual void GetDescription(wpi::raw_ostream& desc) const;
-  void AddChild(void *child);
   virtual void Normalize(double wheelSpeeds[], size_t size);
   MotorSafetyHelper m_safetyHelper{this};
 };
@@ -284,11 +284,12 @@ RobotDriveBase::RobotDriveBase() { DBG; m_safetyHelper.SetSafetyEnabled(true); }
 void RobotDriveBase::SetName(const std::string& name, int count) { DBGz(name.c_str()); } ;
 void RobotDriveBase::AddChild(void *child) { DBG; };
 
-void RobotDriveBase::SetExpiration(double timeout) { DBG; }
-double RobotDriveBase::GetExpiration() const { DBG; return 0.0; }
-bool RobotDriveBase::IsAlive() const { DBG; return false; }
-void RobotDriveBase::SetSafetyEnabled(bool enabled) { DBG; }
-bool RobotDriveBase::IsSafetyEnabled() const { DBG; return false; }
+void RobotDriveBase::SetExpiration(double timeout) { DBGST("timeout %f", timeout);
+  m_safetyHelper.SetExpiration(timeout); }
+double RobotDriveBase::GetExpiration() const { double t = m_safetyHelper.GetExpiration(); DBGST("expiration %f", t); return t; }
+bool RobotDriveBase::IsAlive() const { bool b = m_safetyHelper.IsAlive(); DBGST("isAlive %d", b); return b; }
+bool RobotDriveBase::IsSafetyEnabled() const { bool b = m_safetyHelper.IsSafetyEnabled(); DBGST("isSafety %d", b); return b; }
+void RobotDriveBase::SetSafetyEnabled(bool enabled) { DBGST("setSafety %d", enabled); m_safetyHelper.SetSafetyEnabled(enabled); }
 void RobotDriveBase::GetDescription(wpi::raw_ostream& desc) const { DBG; }
 void RobotDriveBase::Normalize(double wheelSpeeds[], size_t size = 4) {
   double maxMagnitude = std::abs(wheelSpeeds[0]);
