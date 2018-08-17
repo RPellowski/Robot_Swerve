@@ -41,10 +41,20 @@ constexpr double kPi = 3.14159265358979323846;
 
 /**
  * Conceptual representative of a Swerve wheel fixture
- *
-class Wheel {
-}
  */
+class Wheel {
+ public:
+  Wheel(float w, float l);
+  ~Wheel();
+ private:
+  float m_w;
+  float m_l;
+};
+Wheel::Wheel(float w, float l)
+  : m_w(w),
+    m_l(l)
+  { DBGST("width %f length %f", m_w, m_l); };
+Wheel::~Wheel() { DBG; };
 
 SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          SpeedController& rl_drive_motor,
@@ -85,7 +95,7 @@ void SwerveDrive::DriveCartesian(double north,
                                  double yaw,
                                  double gyro) {
 
-  DBGST("north %f east %f yaw %f gyro %f", north, east, yaw, gyro);
+  DBGST("north %f east %f yaw %.1f gyro %.1f", north, east, yaw, gyro);
   // Compensate for gyro angle. Positive rotation is counter-clockwise
   RotateVector(north, east, gyro);
 
@@ -177,7 +187,7 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
 
 // Borrowed from RobotDrive
 void SwerveDrive::RotateVector(double& x, double& y, double angle) {
-  DBGST("IN  x %f y %f angle %f", x, y, angle);
+  DBGST("IN  x %f y %f (%.1f) angle %.1f", x, y, degrees(std::atan2(y, x)), angle);
   double r = radians(angle);
   double cosA = std::cos(r);
   double sinA = std::sin(r);
@@ -185,6 +195,6 @@ void SwerveDrive::RotateVector(double& x, double& y, double angle) {
   double yOut = x * sinA + y * cosA;
   x = xOut;
   y = yOut;
-  DBGST("OUT x %f y %f", x, y);
+  DBGST("OUT x %f y %f (%.1f)", x, y, degrees(std::atan2(y, x)));
 }
 

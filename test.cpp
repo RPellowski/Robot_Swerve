@@ -317,6 +317,9 @@ using namespace frc;
 
 int main()
 {
+  Wheel *wheel = new Wheel(24., 36.);
+  delete wheel;
+#if 0
   WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
   WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
   WPI_TalonSRX *m3 = new WPI_TalonSRX(3);
@@ -326,7 +329,7 @@ int main()
   WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
   WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
   SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,12.,24.);
-  s->DriveCartesian(1.,1.,90.,0.);
+  s->DriveCartesian(1.,1.,90.,90.);
   s->StopMotor();
   delete s;
   delete m1;
@@ -337,6 +340,7 @@ int main()
   delete m6;
   delete m7;
   delete m8;
+#endif
   DBG;
 }
 
