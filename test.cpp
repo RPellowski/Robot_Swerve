@@ -31,6 +31,7 @@
   } while (0)
 
 #define DBGf(a) DBGST(#a "%f",(a))
+#define DBGf2(a,b) DBGST(#a " %f " #b " %f",(a),(b))
 // -----------------------------------------------------------------
 namespace llvm {
   typedef std::ostream raw_ostream;
@@ -315,10 +316,29 @@ using namespace frc;
 #include "SwerveDrive.h"
 #include "SwerveDrive.cpp"
 
+#define lengthof(a) (sizeof(a)/sizeof(a[0]))
 int main()
 {
-  Wheel *wheel = new Wheel(24., 36.);
-  delete wheel;
+  Wheel *wheel[4] = {
+                      new Wheel( 4., -4.),
+                      new Wheel(-4., -4.),
+                      new Wheel(-4.,  4.),
+                      new Wheel( 4.,  4.)
+                    };
+  //wheel[0]->ApplyTranslationAndRotation(0., 0., -1.);
+#if 1
+  for (int i = 0; i < lengthof(wheel); i++) {
+    //wheel[i]->ApplyTranslationAndRotation(1., 1., 0.);
+    //wheel[i]->ApplyTranslationAndRotation(1., -1., 0.);
+    //wheel[i]->ApplyTranslationAndRotation(0., 0., -1.);
+    //wheel[i]->ApplyTranslationAndRotation(0., 0., 1.);
+    //wheel[i]->ApplyTranslationAndRotation(1., 1., -1.);
+    wheel[i]->ApplyTranslationAndRotation(0., 1., 0.);
+  }
+  for (int i = 0; i < lengthof(wheel); i++) {
+    delete wheel[i];
+  }
+#endif
 #if 0
   WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
   WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
@@ -341,6 +361,6 @@ int main()
   delete m7;
   delete m8;
 #endif
-  DBG;
+  //DBG;
 }
 

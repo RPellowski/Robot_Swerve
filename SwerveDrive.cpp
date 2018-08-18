@@ -44,18 +44,85 @@ constexpr double kPi = 3.14159265358979323846;
  */
 class Wheel {
  public:
-  Wheel(float w, float l);
+  Wheel(float north, float east, float period = 0.05);
   ~Wheel();
+  void ApplyTranslationAndRotation(float north, float east, float omega = 0.);
  private:
-  float m_w;
-  float m_l;
+  float m_north;
+  float m_east;
+  float m_speed;
+  float m_period;
+  float m_angle;
+  float m_speed_prev;
+  float m_angle_prev;
 };
-Wheel::Wheel(float w, float l)
-  : m_w(w),
-    m_l(l)
-  { DBGST("width %f length %f", m_w, m_l); };
+Wheel::Wheel(float north, float east, float period)
+  : m_north(north),
+    m_east(east),
+    m_period(period),
+    m_speed(0.),
+    m_angle(0.),
+    m_speed_prev(0.),
+    m_angle_prev(0.) {
+  DBGST("north %f east %f", m_north, m_east);
+};
 Wheel::~Wheel() { DBG; };
+void Wheel::ApplyTranslationAndRotation(float north, float east, float omega) {
+  float dX;
+  float dY;
+  float dOmegaX;
+  float dOmegaY;
+  DBGST("north %f east %f omega %.1f", north, east, omega);
 
+  // Translation deltas
+  dX = north * m_period;
+  dY = east * m_period;
+//DBGf2(dX,dY);
+  // Rotation deltas
+  dOmegaX = omega * (0. - m_east) * m_period;
+  dOmegaY = omega * m_north * m_period;
+//DBGf2(dOmegaX,dOmegaY);
+
+  // Net deltas
+  dX += dOmegaX;
+  dY += dOmegaY;
+//DBGf2(dX,dY);
+
+  // Now speed and angle
+  m_speed_prev = m_speed;
+  m_angle_prev = m_angle;
+  m_speed = std::sqrt(dX * dX + dY * dY);
+  m_angle = std::atan2(dY, dX);
+  DBGST("speed %f angle %.1f", m_speed, degrees(m_angle));
+};
+/*
+void Wheel::AdjustSpeedAndRotation(float north, float east, float omega) {
+  float dX;
+  float dY;
+  float dOmegaX;
+  float dOmegaY;
+  DBGST("north %f east %f omega %.1f", north, east, omega);
+
+  // Translation deltas
+  dX = north * m_period;
+  dY = east * m_period;
+
+  // Rotation deltas
+  dOmegaX = omega * m_north * m_period;
+  dOmegaY = omega * m_east * m_period;
+
+  // Net deltas
+  dX += dOmegaX;
+  dY += dOmegaY;
+
+  // Now speed and angle
+  m_speed_prev = m_speed;
+  m_angle_prev = m_angle;
+  m_speed = std::sqrt(dX * dX + dY * dY);
+  m_angle = std::atan2(-dY, dX);
+  DBGST("speed %f angle %.1f", m_speed, degrees(m_angle));
+};
+*/
 SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          SpeedController& rl_drive_motor,
                          SpeedController& fr_drive_motor,
