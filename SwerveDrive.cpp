@@ -26,6 +26,8 @@
 
 #ifndef LOCAL_TEST
 #define DBG
+#define DBGf
+#define DBGf2
 #define DBGST(a,...)
 #endif
 
@@ -44,19 +46,20 @@ constexpr double kPi = 3.14159265358979323846;
  */
 class Wheel {
  public:
-  Wheel(float north, float east, float period = 0.05);
+  Wheel(double north, double east, double period = 0.05);
   ~Wheel();
-  void ApplyTranslationAndRotation(float north, float east, float omega = 0.);
+  void ApplyTranslationAndRotation(double north, double east, double omega = 0.);
+  void AdjustSpeedAndRotation(double norm);
  private:
-  float m_north;
-  float m_east;
-  float m_speed;
-  float m_period;
-  float m_angle;
-  float m_speed_prev;
-  float m_angle_prev;
+  double m_north;
+  double m_east;
+  double m_speed;
+  double m_period;
+  double m_angle;
+  double m_speed_prev;
+  double m_angle_prev;
 };
-Wheel::Wheel(float north, float east, float period)
+Wheel::Wheel(double north, double east, double period)
   : m_north(north),
     m_east(east),
     m_period(period),
@@ -67,18 +70,19 @@ Wheel::Wheel(float north, float east, float period)
   DBGST("north %f east %f", m_north, m_east);
 };
 Wheel::~Wheel() { DBG; };
-void Wheel::ApplyTranslationAndRotation(float north, float east, float omega) {
-  float dX;
-  float dY;
-  float dOmegaX;
-  float dOmegaY;
+void Wheel::ApplyTranslationAndRotation(double north, double east, double omega) {
+  double dX;
+  double dY;
+  double dOmegaX;
+  double dOmegaY;
   DBGST("north %f east %f omega %.1f", north, east, omega);
 
   // Translation deltas
-  dX = north * m_period;
-  dY = east * m_period;
+  dX = north;
+  dY = east;
 //DBGf2(dX,dY);
-  // Rotation deltas
+  // Rotation deltas -
+  //   note that east affects X and north affects Y
   dOmegaX = omega * (0. - m_east) * m_period;
   dOmegaY = omega * m_north * m_period;
 //DBGf2(dOmegaX,dOmegaY);
@@ -94,35 +98,13 @@ void Wheel::ApplyTranslationAndRotation(float north, float east, float omega) {
   m_speed = std::sqrt(dX * dX + dY * dY);
   m_angle = std::atan2(dY, dX);
   DBGST("speed %f angle %.1f", m_speed, degrees(m_angle));
+
+  // Adjust speed sign and rotation angle for range of rotation
+  //DBGST("speed %f angle %.1f", m_speed, degrees(m_angle));
 };
-/*
-void Wheel::AdjustSpeedAndRotation(float north, float east, float omega) {
-  float dX;
-  float dY;
-  float dOmegaX;
-  float dOmegaY;
-  DBGST("north %f east %f omega %.1f", north, east, omega);
-
-  // Translation deltas
-  dX = north * m_period;
-  dY = east * m_period;
-
-  // Rotation deltas
-  dOmegaX = omega * m_north * m_period;
-  dOmegaY = omega * m_east * m_period;
-
-  // Net deltas
-  dX += dOmegaX;
-  dY += dOmegaY;
-
-  // Now speed and angle
-  m_speed_prev = m_speed;
-  m_angle_prev = m_angle;
-  m_speed = std::sqrt(dX * dX + dY * dY);
-  m_angle = std::atan2(-dY, dX);
-  DBGST("speed %f angle %.1f", m_speed, degrees(m_angle));
+void Wheel::AdjustSpeedAndRotation(double norm) {
+  DBGf(norm);
 };
-*/
 SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          SpeedController& rl_drive_motor,
                          SpeedController& fr_drive_motor,
@@ -179,6 +161,24 @@ void SwerveDrive::DriveCartesian(double north,
   wheelAngles[RL] = 0.0;
   wheelAngles[FR] = 0.0;
   wheelAngles[RR] = 0.0;
+
+/*
+// Compare to RobotDriveBase
+void Normalize(double wheelSpeeds[]) {
+  double maxMagnitude = std::abs(wheelSpeeds[0]);
+  for (size_t i = 1; i < 4; i++) {
+    double temp = std::abs(wheelSpeeds[i]);
+    if (maxMagnitude < temp) {
+      maxMagnitude = temp;
+    }
+  }
+  if (maxMagnitude > 1.0) {
+    for (size_t i = 0; i < 4; i++) {
+      wheelSpeeds[i] = wheelSpeeds[i] / maxMagnitude;
+    }
+  }
+}
+*/
 
   /* Scale wheel speeds */
   Normalize(wheelSpeeds);

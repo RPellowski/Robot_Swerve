@@ -27,8 +27,10 @@
  * Add default and settable PID values for speed (maybe)
  * Add Ackermann mode
  * Add reverse kinematics for calculation of location
- * Add (non-linear) scaling on inputs
- * Add scaling on outputs
+ * Add (non-linear) scaling on speed inputs
+ * Add (non-linear) scaling on rotation inputs
+ * Add scaling on speed outputs
+ * Add scaling on rotation outputs
  * Enable motor safety? where?
  * Test mode
  *  Single wheel direction
