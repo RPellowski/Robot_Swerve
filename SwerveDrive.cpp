@@ -49,7 +49,8 @@ class Wheel {
   Wheel(double north, double east, double period = 0.05);
   ~Wheel();
   void ApplyTranslationAndRotation(double north, double east, double omega = 0.);
-  void AdjustSpeedAndRotation(double norm);
+  void NormalizeSpeed(double norm);
+  //void NormalizeRotation(double norm);
  private:
   double m_north;
   double m_east;
@@ -70,6 +71,13 @@ Wheel::Wheel(double north, double east, double period)
   DBGST("north %f east %f", m_north, m_east);
 };
 Wheel::~Wheel() { DBG; };
+void NormalizeRotation(double m_speed_prev, double m_angle_prev, double& m_speed, double& m_angle) {
+  // always keep new angle within 90 degrees of previous angle
+  // for larger deltas, the motor is reversed and a closer angle is selected
+  m_speed = m_speed_prev;
+  m_angle = m_angle_prev;
+  DBGf4(m_speed_prev, m_angle_prev, m_speed, m_angle);
+};
 void Wheel::ApplyTranslationAndRotation(double north, double east, double omega) {
   double dX;
   double dY;
@@ -102,8 +110,9 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   // Adjust speed sign and rotation angle for range of rotation
   //DBGST("speed %f angle %.1f", m_speed, degrees(m_angle));
 };
-void Wheel::AdjustSpeedAndRotation(double norm) {
+void Wheel::NormalizeSpeed(double norm) {
   DBGf(norm);
+  m_speed /= norm;
 };
 SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          SpeedController& rl_drive_motor,

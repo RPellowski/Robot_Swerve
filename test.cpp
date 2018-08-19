@@ -32,6 +32,7 @@
 
 #define DBGf(a) DBGST(#a "%f",(a))
 #define DBGf2(a,b) DBGST(#a " %f " #b " %f",(a),(b))
+#define DBGf4(a,b,c,d) DBGST(#a " %.1f " #b " %.1f " #c " %.1f " #d " %.1f",(a),(b),(c),(d))
 // -----------------------------------------------------------------
 namespace llvm {
   typedef std::ostream raw_ostream;
@@ -315,6 +316,7 @@ using namespace frc;
 #define LOCAL_TEST
 #include "SwerveDrive.h"
 #include "SwerveDrive.cpp"
+#include <cassert>
 
 #define lengthof(a) (sizeof(a)/sizeof(a[0]))
 int main()
@@ -326,7 +328,23 @@ int main()
                       new Wheel( 4.,  4.)
                     };
   //wheel[0]->ApplyTranslationAndRotation(0., 0., -1.);
-#if 1
+  double speed, angle;
+  #define check(a,b,c,d) do {\
+    NormalizeRotation(a,b,speed,angle); \
+    assert(speed == a); \
+    assert(angle == b); \
+  } while (0)
+#if 0
+  check(1., 2., 1., 2);
+  check(1., ., 1., );
+  check(1., ., 1., );
+  check(1., ., 1., );
+  check(1., ., 1., );
+  check(1., ., 1., );
+  check(1., ., 1., );
+  check(1., ., 1., );
+  check(1., ., 1., );
+  check(1., ., 1., );
   for (int i = 0; i < lengthof(wheel); i++) {
     wheel[i]->ApplyTranslationAndRotation(1., 1., 0.);
     //wheel[i]->ApplyTranslationAndRotation(1., -1., 0.);
