@@ -329,22 +329,18 @@ int main()
                     };
   //wheel[0]->ApplyTranslationAndRotation(0., 0., -1.);
   double speed, angle;
-  #define check(a,b,c,d) do {\
+  #define check(a,b,c,d,e,f) do {\
+    speed = c; \
+    angle = d; \
     NormalizeRotation(a,b,speed,angle); \
-    assert(speed == a); \
-    assert(angle == b); \
+    if (!(speed == e) || !(angle == f)) \
+    {DBGST("echo assert fails %.1f/%.1f %.1f/%.1f ", speed,c,angle,d);} \
   } while (0)
 #if 0
-  check(1., 2., 1., 2);
-  check(1., ., 1., );
-  check(1., ., 1., );
-  check(1., ., 1., );
-  check(1., ., 1., );
-  check(1., ., 1., );
-  check(1., ., 1., );
-  check(1., ., 1., );
-  check(1., ., 1., );
-  check(1., ., 1., );
+  check(1., 2., 1., 2., 1., 2.);
+  check(1., 2., 1., 93., -1., -87.);
+  check(1., 92., 1., 1., 1., 181.);
+  check(1., 2., 1., 2., 1., 2.);
   for (int i = 0; i < lengthof(wheel); i++) {
     wheel[i]->ApplyTranslationAndRotation(1., 1., 0.);
     //wheel[i]->ApplyTranslationAndRotation(1., -1., 0.);

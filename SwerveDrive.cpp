@@ -28,6 +28,7 @@
 #define DBG
 #define DBGf
 #define DBGf2
+#define DBGf4
 #define DBGST(a,...)
 #endif
 
@@ -71,9 +72,15 @@ Wheel::Wheel(double north, double east, double period)
   DBGST("north %f east %f", m_north, m_east);
 };
 Wheel::~Wheel() { DBG; };
+double AngularDistance(double a, double b) {
+  if () {
+    return true;
+  }
+  return true;
+}
 void NormalizeRotation(double m_speed_prev, double m_angle_prev, double& m_speed, double& m_angle) {
-  // always keep new angle within 90 degrees of previous angle
-  // for larger deltas, the motor is reversed and a closer angle is selected
+  // Always keep new angle within 90 degrees of previous angle
+  // For larger deltas, the motor is reversed and a closer angle is selected
   m_speed = m_speed_prev;
   m_angle = m_angle_prev;
   DBGf4(m_speed_prev, m_angle_prev, m_speed, m_angle);
