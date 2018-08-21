@@ -72,11 +72,22 @@ Wheel::Wheel(double north, double east, double period)
   DBGST("north %f east %f", m_north, m_east);
 };
 Wheel::~Wheel() { DBG; };
-double AngularDistance(double a, double b) {
-  if () {
-    return true;
+double AngleMod(double a) {
+  double ret;
+  double n = 360;
+  ret = a;
+  while (ret < 0.) ret += n;
+  while (ret >= n) ret -= n;
+  if (ret > 180.) ret -= 360.;
+  DBGf2(a,ret);
+  return ret;
+}
+double AngularDistance(double speed_prev, double prev, double next) {
+  DBGf3(speed_prev, prev, next);
+  if (speed_prev < 0.) {
+    prev = AngleMod(prev + 180.);
   }
-  return true;
+  return AngleMod(next - prev);
 }
 void NormalizeRotation(double m_speed_prev, double m_angle_prev, double& m_speed, double& m_angle) {
   // Always keep new angle within 90 degrees of previous angle

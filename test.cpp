@@ -30,9 +30,11 @@
       __LINE__, basename((char *)__FILE__), f.c_str(), ##__VA_ARGS__); \
   } while (0)
 
-#define DBGf(a) DBGST(#a "%f",(a))
+#define DBGf(a) DBGST(#a " %f ",(a))
 #define DBGf2(a,b) DBGST(#a " %f " #b " %f",(a),(b))
+#define DBGf3(a,b,c) DBGST(#a " %.1f " #b " %.1f " #c " %.1f ",(a),(b),(c))
 #define DBGf4(a,b,c,d) DBGST(#a " %.1f " #b " %.1f " #c " %.1f " #d " %.1f",(a),(b),(c),(d))
+
 // -----------------------------------------------------------------
 namespace llvm {
   typedef std::ostream raw_ostream;
@@ -316,7 +318,6 @@ using namespace frc;
 #define LOCAL_TEST
 #include "SwerveDrive.h"
 #include "SwerveDrive.cpp"
-#include <cassert>
 
 #define lengthof(a) (sizeof(a)/sizeof(a[0]))
 int main()
@@ -336,11 +337,17 @@ int main()
     if (!(speed == e) || !(angle == f)) \
     {DBGST("echo assert fails %.1f/%.1f %.1f/%.1f ", speed,c,angle,d);} \
   } while (0)
+  #define test(a,b,c,d) do { \
+    double res = AngularDistance(a,b,c); \
+    if (res != d) \
+    {DBGST("assert fail speed_prev %.1f prev %.1f next %.1f expected %.1f got %.1f", a,b,c,d,res);} \
+  } while (0)
+  test(1., -1., 1., 2.);
+  test(1.,  1., 1., 0.);
+  test(-1.,  1., 1., 180.);
+  test(-1.,  1., 180., -1.);
+  test(-1.,  -90., 90., 0.);
 #if 0
-  check(1., 2., 1., 2., 1., 2.);
-  check(1., 2., 1., 93., -1., -87.);
-  check(1., 92., 1., 1., 1., 181.);
-  check(1., 2., 1., 2., 1., 2.);
   for (int i = 0; i < lengthof(wheel); i++) {
     wheel[i]->ApplyTranslationAndRotation(1., 1., 0.);
     //wheel[i]->ApplyTranslationAndRotation(1., -1., 0.);
@@ -353,8 +360,6 @@ int main()
   for (int i = 0; i < lengthof(wheel); i++) {
     delete wheel[i];
   }
-#endif
-#if 0
   WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
   WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
   WPI_TalonSRX *m3 = new WPI_TalonSRX(3);
