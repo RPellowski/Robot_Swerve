@@ -28,6 +28,7 @@
 #define DBG
 #define DBGf
 #define DBGf2
+#define DBGf3
 #define DBGf4
 #define DBGST(a,...)
 #endif
@@ -76,15 +77,15 @@ double AngleMod(double a) {
   double ret;
   double n = 360;
   ret = a;
-  while (ret < 0.) ret += n;
-  while (ret >= n) ret -= n;
-  if (ret > 180.) ret -= 360.;
+  while (ret < 0.) { ret += n; }
+  while (ret >= n) { ret -= n; }
+  if (ret > 180.) { ret -= 360.; }
   DBGf2(a,ret);
   return ret;
 }
-double AngularDistance(double speed_prev, double prev, double next) {
-  DBGf3(speed_prev, prev, next);
-  if (speed_prev < 0.) {
+double AngularDistance(double speed_prev, double prev, double speed_next, double next) {
+  DBGf4(speed_prev, prev, speed_next, next);
+  if (speed_prev * speed_next < 0.) {
     prev = AngleMod(prev + 180.);
   }
   return AngleMod(next - prev);
@@ -92,8 +93,17 @@ double AngularDistance(double speed_prev, double prev, double next) {
 void NormalizeRotation(double m_speed_prev, double m_angle_prev, double& m_speed, double& m_angle) {
   // Always keep new angle within 90 degrees of previous angle
   // For larger deltas, the motor is reversed and a closer angle is selected
-  m_speed = m_speed_prev;
-  m_angle = m_angle_prev;
+  double distance;
+  if (m_speed_prev * m_speed < 0.) {
+    m_speed = 0. - m_speed;
+    m_angle = AngleMod(m_angle + 180.);
+  }
+  distance = AngularDistance(m_speed_prev, m_angle_prev, m_speed, m_angle);
+  DBGf(distance);
+  if (std::abs(distance) > 90) {
+    m_speed = 0. - m_speed;
+    m_angle = AngleMod(m_angle + 180.);
+  }
   DBGf4(m_speed_prev, m_angle_prev, m_speed, m_angle);
 };
 void Wheel::ApplyTranslationAndRotation(double north, double east, double omega) {

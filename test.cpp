@@ -333,21 +333,27 @@ int main()
   #define check(a,b,c,d,e,f) do {\
     speed = c; \
     angle = d; \
+    DBGz("==="); \
     NormalizeRotation(a,b,speed,angle); \
     if (!(speed == e) || !(angle == f)) \
-    {DBGST("echo assert fails %.1f/%.1f %.1f/%.1f ", speed,c,angle,d);} \
+    {DBGST("assert fail prev %.1f %.1f, next %.1f %.1f, got %.1f %.1f, expected %.1f %.1f", \
+    a,b,c,d,speed,angle,e,f);} \
   } while (0)
   #define test(a,b,c,d) do { \
     double res = AngularDistance(a,b,c); \
     if (res != d) \
     {DBGST("assert fail speed_prev %.1f prev %.1f next %.1f expected %.1f got %.1f", a,b,c,d,res);} \
   } while (0)
+  //check(1.,1.,1.,1.,1.,1.);
+  //check(-1.,1.,1.,1.,1.,1.);
+  check(-1.,-90.,1.,90.,-1.,-90.);
+  //check(1.,1.,1.,92.,-1.,-88.);
+#if 0
   test(1., -1., 1., 2.);
   test(1.,  1., 1., 0.);
   test(-1.,  1., 1., 180.);
   test(-1.,  1., 180., -1.);
   test(-1.,  -90., 90., 0.);
-#if 0
   for (int i = 0; i < lengthof(wheel); i++) {
     wheel[i]->ApplyTranslationAndRotation(1., 1., 0.);
     //wheel[i]->ApplyTranslationAndRotation(1., -1., 0.);
