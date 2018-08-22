@@ -77,6 +77,7 @@ class SwerveDrive : public RobotDriveBase {
                       double yaw,
                       double gyro = 0.0);
 
+  void Normalize();
   void StopMotor() override;
   void GetDescription(wpi::raw_ostream& desc) const override;
 

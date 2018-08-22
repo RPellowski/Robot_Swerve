@@ -43,6 +43,8 @@ constexpr double kPi = 3.14159265358979323846;
 #define radians(d) (d / 180.0 * kPi)
 #define degrees(r) (r * 180.0 / kPi)
 
+/* ======================================================================== */
+
 /**
  * Conceptual representative of a Swerve wheel fixture
  */
@@ -84,12 +86,12 @@ double Wheel::AngleMod(double a) {
   while (ret < 0.) { ret += n; }
   while (ret >= n) { ret -= n; }
   if (ret > 180.) { ret -= 360.; }
-  DBGf2(a,ret);
+  //DBGf2(a,ret);
   return ret;
 }
 double Wheel::AngularDistance(double speed_prev, double prev, double speed_next, double next) {
   // Calculate angle from previous to next
-  DBGf4(speed_prev, prev, speed_next, next);
+  //DBGf4(speed_prev, prev, speed_next, next);
   if (speed_prev * speed_next < 0.) {
     next = AngleMod(next + 180.);
   }
@@ -105,12 +107,12 @@ void Wheel::NormalizeRotation() {//double m_speed_prev, double m_angle_prev, dou
   // Always keep new angle within 90 degrees of previous angle
   // For larger deltas, the motor is reversed and a closer angle is selected
   distance = AngularDistance(m_speed_prev, m_angle_prev, m_speed, m_angle);
-  DBGf(distance);
+  //DBGf(distance);
   if (std::abs(distance) > 90) {
     m_speed = 0. - m_speed;
     m_angle = AngleMod(m_angle + 180.);
   }
-  DBGf4(m_speed_prev, m_angle_prev, m_speed, m_angle);
+  //DBGf4(m_speed_prev, m_angle_prev, m_speed, m_angle);
 };
 void Wheel::ApplyTranslationAndRotation(double north, double east, double omega) {
   double dX;
@@ -122,24 +124,24 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   // Translation deltas
   dX = north;
   dY = east;
-//DBGf2(dX,dY);
+  //DBGf2(dX,dY);
   // Rotation deltas -
   //   note that east affects X and north affects Y
   dOmegaX = omega * (0. - m_east) * m_period;
   dOmegaY = omega * m_north * m_period;
-//DBGf2(dOmegaX,dOmegaY);
+  //DBGf2(dOmegaX,dOmegaY);
 
   // Net deltas
   dX += dOmegaX;
   dY += dOmegaY;
-//DBGf2(dX,dY);
+  //DBGf2(dX,dY);
 
   // Now speed and angle
   m_speed_prev = m_speed;
   m_angle_prev = m_angle;
   m_speed = std::sqrt(dX * dX + dY * dY);
   m_angle = degrees(std::atan2(dY, dX));
-  DBGST("speed %f angle %.1f", m_speed, m_angle);
+  //DBGST("speed %f angle %.1f", m_speed, m_angle);
 
   // Adjust speed sign and rotation angle for range of rotation
   NormalizeRotation();
@@ -152,6 +154,9 @@ double Wheel::NormalizeSpeed(double norm) {
 };
 double Wheel::Angle() { DBG; return m_angle; };
 double Wheel::Speed() { DBG; return m_speed; };
+
+/* ======================================================================== */
+
 SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          SpeedController& rl_drive_motor,
                          SpeedController& fr_drive_motor,
@@ -209,26 +214,8 @@ void SwerveDrive::DriveCartesian(double north,
   wheelAngles[FR] = 0.0;
   wheelAngles[RR] = 0.0;
 
-/*
-// Compare to RobotDriveBase
-void Normalize(double wheelSpeeds[]) {
-  double maxMagnitude = std::abs(wheelSpeeds[0]);
-  for (size_t i = 1; i < 4; i++) {
-    double temp = std::abs(wheelSpeeds[i]);
-    if (maxMagnitude < temp) {
-      maxMagnitude = temp;
-    }
-  }
-  if (maxMagnitude > 1.0) {
-    for (size_t i = 0; i < 4; i++) {
-      wheelSpeeds[i] = wheelSpeeds[i] / maxMagnitude;
-    }
-  }
-}
-*/
-
   /* Scale wheel speeds */
-  Normalize(wheelSpeeds);
+  Normalize();
 
 //done Insert logic here ---------------------
 
@@ -247,6 +234,23 @@ void Normalize(double wheelSpeeds[]) {
   m_rr_drive_motor.Set(wheelSpeeds[RR]);
 
   m_safetyHelper.Feed();
+}
+
+void SwerveDrive::Normalize() {
+  // Compare to RobotDriveBase
+  double maxMagnitude = 0; //std::abs(wheelSpeeds[0]);
+  DBG;
+  for (size_t i = 1; i < 4; i++) {
+    double temp = 0; //std::abs(wheelSpeeds[i]);
+    if (maxMagnitude < temp) {
+      maxMagnitude = temp;
+    }
+  }
+  if (maxMagnitude > 1.0) {
+    for (size_t i = 0; i < 4; i++) {
+      ;//wheelSpeeds[i] = wheelSpeeds[i] / maxMagnitude;
+    }
+  }
 }
 
 void SwerveDrive::StopMotor() {
