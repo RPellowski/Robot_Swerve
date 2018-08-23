@@ -36,10 +36,12 @@
 using namespace frc;
 
 constexpr double kPi = 3.14159265358979323846;
-#define FL 0
-#define RL 1
-#define FR 2
-#define RR 3
+enum {
+  FL = 0,
+  RL,
+  RR,
+  FR
+};
 #define radians(d) (d / 180.0 * kPi)
 #define degrees(r) (r * 180.0 / kPi)
 
@@ -59,7 +61,7 @@ class Wheel {
   double NormalizeSpeed(double norm);
   double Angle();
   double Speed();
- private:
+ //private:
   double m_north;
   double m_east;
   double m_speed;
@@ -152,8 +154,8 @@ double Wheel::NormalizeSpeed(double norm) {
   m_speed /= norm;
   return m_speed;
 };
-double Wheel::Angle() { DBG; return m_angle; };
-double Wheel::Speed() { DBG; return m_speed; };
+//double Wheel::Angle() { DBG; return m_angle; };
+//double Wheel::Speed() { DBG; return m_speed; };
 
 /* ======================================================================== */
 
@@ -189,6 +191,20 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
   static int instances = 0;
   ++instances;
   SetName("SwerveDrive", instances);
+  double l = base_length / 2.;
+  double w = base_width / 2.;
+  m_wheel[FL] = new Wheel( l,-w);
+  m_wheel[RL] = new Wheel(-l,-w);
+  m_wheel[RR] = new Wheel(-l, w);
+  m_wheel[FR] = new Wheel( l, w);
+}
+
+SwerveDrive::~SwerveDrive() {
+  DBG;
+  delete m_wheel[FL];
+  delete m_wheel[RL];
+  delete m_wheel[RR];
+  delete m_wheel[FR];
 }
 
 void SwerveDrive::DriveCartesian(double north,
@@ -202,53 +218,46 @@ void SwerveDrive::DriveCartesian(double north,
 
 //Insert logic here ---------------------
 
-  double wheelSpeeds[4];
-  wheelSpeeds[FL] = 0.0;
-  wheelSpeeds[RL] = 0.0;
-  wheelSpeeds[FR] = 0.0;
-  wheelSpeeds[RR] = 0.0;
-
-  double wheelAngles[4];
-  wheelAngles[FL] = 0.0;
-  wheelAngles[RL] = 0.0;
-  wheelAngles[FR] = 0.0;
-  wheelAngles[RR] = 0.0;
+  for (size_t i = 0; i < kWheels; i++) {
+    DBGz("---");
+    m_wheel[i]->ApplyTranslationAndRotation(north, east, yaw);
+  }
 
   /* Scale wheel speeds */
-  Normalize();
+  NormalizeSpeeds();
 
 //done Insert logic here ---------------------
 
   /* Set angles first */
-  m_fl_steer_motor.Set(wheelAngles[FL]);
-  m_fr_steer_motor.Set(wheelAngles[RL]);
-  m_rl_steer_motor.Set(wheelAngles[FR]);
-  m_rr_steer_motor.Set(wheelAngles[RR]);
+  m_fl_steer_motor.Set(m_wheel[FL]->m_angle);
+  m_fr_steer_motor.Set(m_wheel[RL]->m_angle);
+  m_rr_steer_motor.Set(m_wheel[RR]->m_angle);
+  m_rl_steer_motor.Set(m_wheel[FR]->m_angle);
 
 // Verify that wheels are accurately positioned
 
 // if every wheel is within tolerance {
-  m_fl_drive_motor.Set(wheelSpeeds[FL]);
-  m_fr_drive_motor.Set(wheelSpeeds[RL]);
-  m_rl_drive_motor.Set(wheelSpeeds[FR]);
-  m_rr_drive_motor.Set(wheelSpeeds[RR]);
+  m_fl_drive_motor.Set(m_wheel[FL]->m_speed);
+  m_fr_drive_motor.Set(m_wheel[RL]->m_speed);
+  m_rr_drive_motor.Set(m_wheel[RR]->m_speed);
+  m_rl_drive_motor.Set(m_wheel[FR]->m_speed);
 
   m_safetyHelper.Feed();
 }
 
-void SwerveDrive::Normalize() {
+void SwerveDrive::NormalizeSpeeds() {
   // Compare to RobotDriveBase
-  double maxMagnitude = 0; //std::abs(wheelSpeeds[0]);
+  double maxMagnitude = std::abs(m_wheel[0]->m_speed);
   DBG;
-  for (size_t i = 1; i < 4; i++) {
-    double temp = 0; //std::abs(wheelSpeeds[i]);
+  for (size_t i = 1; i < kWheels; i++) {
+    double temp = std::abs(m_wheel[i]->m_speed);
     if (maxMagnitude < temp) {
       maxMagnitude = temp;
     }
   }
   if (maxMagnitude > 1.0) {
-    for (size_t i = 0; i < 4; i++) {
-      ;//wheelSpeeds[i] = wheelSpeeds[i] / maxMagnitude;
+    for (size_t i = 0; i < kWheels; i++) {
+      m_wheel[i]->NormalizeSpeed(maxMagnitude);
     }
   }
 }

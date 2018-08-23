@@ -42,6 +42,9 @@
  *
  */
 
+class Wheel;
+constexpr int kWheels = 4;
+
 class SwerveDrive : public RobotDriveBase {
  public:
   SwerveDrive(SpeedController& fl_drive_motor,
@@ -55,7 +58,7 @@ class SwerveDrive : public RobotDriveBase {
               double base_width,
               double base_length);
 
-  ~SwerveDrive() override = default;
+  ~SwerveDrive() override;
 
   // disable copy and assignment operators
   SwerveDrive(const SwerveDrive&) = delete;
@@ -77,7 +80,7 @@ class SwerveDrive : public RobotDriveBase {
                       double yaw,
                       double gyro = 0.0);
 
-  void Normalize();
+  void NormalizeSpeeds();
   void StopMotor() override;
   void GetDescription(wpi::raw_ostream& desc) const override;
 
@@ -97,5 +100,6 @@ class SwerveDrive : public RobotDriveBase {
   SpeedController& m_rr_steer_motor;
   double m_base_width;
   double m_base_length;
+  Wheel *m_wheel[kWheels];
 };
 

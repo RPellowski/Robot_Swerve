@@ -390,8 +390,14 @@ int main()
   WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
   WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
   WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
-  SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,12.,24.);
-  s->DriveCartesian(1.,1.,90.,90.);
+  SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,8.,8.);
+  //s->DriveCartesian(1.,1.,90.,90.);
+  //s->DriveCartesian(0.,0.,1.,0.);
+  //s->DriveCartesian(1.,0.,0.,0.);
+  //s->DriveCartesian(1.,1.,0.,0.);
+  //s->DriveCartesian(1.,1.,0.,45.);
+  s->DriveCartesian(-1.,0.,0.,0.);
+#if 0
   s->StopMotor();
   delete s;
   delete m1;
@@ -402,6 +408,7 @@ int main()
   delete m6;
   delete m7;
   delete m8;
+#endif
 #endif
 }
 
