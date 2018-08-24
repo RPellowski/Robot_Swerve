@@ -397,7 +397,7 @@ int main()
   //s->DriveCartesian(1.,1.,0.,0.);
   //s->DriveCartesian(1.,1.,0.,45.);
   s->DriveCartesian(-1.,0.,0.,0.);
-#if 0
+#if 1
   s->StopMotor();
   delete s;
   delete m1;

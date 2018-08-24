@@ -36,12 +36,7 @@
 using namespace frc;
 
 constexpr double kPi = 3.14159265358979323846;
-enum {
-  FL = 0,
-  RL,
-  RR,
-  FR
-};
+enum { FL = 0, RL, RR, FR };
 #define radians(d) (d / 180.0 * kPi)
 #define degrees(r) (r * 180.0 / kPi)
 
@@ -169,7 +164,18 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          SpeedController& rr_steer_motor,
                          double base_width,
                          double base_length)
-    : m_fl_drive_motor(fl_drive_motor),
+    :
+#ifdef USE_ARRAY
+      m_drive[FL](fl_drive_motor),
+      m_drive[RL](rl_drive_motor),
+      m_drive[RR](rr_drive_motor),
+      m_drive[FR](fr_drive_motor),
+      m_steer[FL](fl_steer_motor),
+      m_steer[RL](fl_steer_motor),
+      m_steer[RR](fl_steer_motor),
+      m_steer[FR](fl_steer_motor),
+#else
+      m_fl_drive_motor(fl_drive_motor),
       m_rl_drive_motor(rl_drive_motor),
       m_fr_drive_motor(fr_drive_motor),
       m_rr_drive_motor(rr_drive_motor),
@@ -177,9 +183,12 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
       m_rl_steer_motor(rl_steer_motor),
       m_fr_steer_motor(fr_steer_motor),
       m_rr_steer_motor(rr_steer_motor),
+#endif
       m_base_width(base_width),
       m_base_length(base_length) {
   DBG;
+#ifdef USE_ARRAY
+#else
   AddChild(&m_fl_drive_motor);
   AddChild(&m_rl_drive_motor);
   AddChild(&m_fr_drive_motor);
@@ -188,23 +197,26 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
   AddChild(&m_rl_steer_motor);
   AddChild(&m_fr_steer_motor);
   AddChild(&m_rr_steer_motor);
-  static int instances = 0;
-  ++instances;
-  SetName("SwerveDrive", instances);
+#endif
+
   double l = base_length / 2.;
   double w = base_width / 2.;
+  // Assume wheels are symmetrically placed around center
   m_wheel[FL] = new Wheel( l,-w);
   m_wheel[RL] = new Wheel(-l,-w);
   m_wheel[RR] = new Wheel(-l, w);
   m_wheel[FR] = new Wheel( l, w);
+
+  static int instances = 0;
+  ++instances;
+  SetName("SwerveDrive", instances);
 }
 
 SwerveDrive::~SwerveDrive() {
   DBG;
-  delete m_wheel[FL];
-  delete m_wheel[RL];
-  delete m_wheel[RR];
-  delete m_wheel[FR];
+  for (size_t i = 0; i < kWheels; i++) {
+    delete m_wheel[i];
+  }
 }
 
 void SwerveDrive::DriveCartesian(double north,
@@ -246,19 +258,16 @@ void SwerveDrive::DriveCartesian(double north,
 }
 
 void SwerveDrive::NormalizeSpeeds() {
-  // Compare to RobotDriveBase
-  double maxMagnitude = std::abs(m_wheel[0]->m_speed);
+  double norm = 1.0;
   DBG;
-  for (size_t i = 1; i < kWheels; i++) {
+  for (size_t i = 0; i < kWheels; i++) {
     double temp = std::abs(m_wheel[i]->m_speed);
-    if (maxMagnitude < temp) {
-      maxMagnitude = temp;
+    if (norm < temp) {
+      norm = temp;
     }
   }
-  if (maxMagnitude > 1.0) {
-    for (size_t i = 0; i < kWheels; i++) {
-      m_wheel[i]->NormalizeSpeed(maxMagnitude);
-    }
+  for (size_t i = 0; i < kWheels; i++) {
+    m_wheel[i]->NormalizeSpeed(norm);
   }
 }
 
