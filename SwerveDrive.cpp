@@ -166,14 +166,14 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          double base_length)
     :
 #ifdef USE_ARRAY
-      m_drive[FL](fl_drive_motor),
-      m_drive[RL](rl_drive_motor),
-      m_drive[RR](rr_drive_motor),
-      m_drive[FR](fr_drive_motor),
-      m_steer[FL](fl_steer_motor),
-      m_steer[RL](fl_steer_motor),
-      m_steer[RR](fl_steer_motor),
-      m_steer[FR](fl_steer_motor),
+      m_drive{&fl_drive_motor,
+              &rl_drive_motor,
+              &rr_drive_motor,
+              &fr_drive_motor},
+      m_steer{&fl_steer_motor,
+              &rl_steer_motor,
+              &rr_steer_motor,
+              &fr_steer_motor},
 #else
       m_fl_drive_motor(fl_drive_motor),
       m_rl_drive_motor(rl_drive_motor),
@@ -188,6 +188,10 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
       m_base_length(base_length) {
   DBG;
 #ifdef USE_ARRAY
+  for (size_t i = 0; i < kWheels; i++) {
+    AddChild(&m_drive[i]);
+    AddChild(&m_steer[i]);
+  }
 #else
   AddChild(&m_fl_drive_motor);
   AddChild(&m_rl_drive_motor);
@@ -241,18 +245,30 @@ void SwerveDrive::DriveCartesian(double north,
 //done Insert logic here ---------------------
 
   /* Set angles first */
+#ifdef USE_ARRAY
+  for (size_t i = 0; i < kWheels; i++) {
+    m_steer[i]->Set(m_wheel[i]->m_angle);
+  }
+#else
   m_fl_steer_motor.Set(m_wheel[FL]->m_angle);
   m_fr_steer_motor.Set(m_wheel[RL]->m_angle);
   m_rr_steer_motor.Set(m_wheel[RR]->m_angle);
   m_rl_steer_motor.Set(m_wheel[FR]->m_angle);
+#endif
 
 // Verify that wheels are accurately positioned
 
 // if every wheel is within tolerance {
+#ifdef USE_ARRAY
+  for (size_t i = 0; i < kWheels; i++) {
+    m_drive[i]->Set(m_wheel[i]->m_speed);
+  }
+#else
   m_fl_drive_motor.Set(m_wheel[FL]->m_speed);
   m_fr_drive_motor.Set(m_wheel[RL]->m_speed);
   m_rr_drive_motor.Set(m_wheel[RR]->m_speed);
   m_rl_drive_motor.Set(m_wheel[FR]->m_speed);
+#endif
 
   m_safetyHelper.Feed();
 }
@@ -266,13 +282,21 @@ void SwerveDrive::NormalizeSpeeds() {
       norm = temp;
     }
   }
-  for (size_t i = 0; i < kWheels; i++) {
-    m_wheel[i]->NormalizeSpeed(norm);
+  if (norm > 1.0) {
+    for (size_t i = 0; i < kWheels; i++) {
+      m_wheel[i]->NormalizeSpeed(norm);
+    }
   }
 }
 
 void SwerveDrive::StopMotor() {
   DBG;
+#ifdef USE_ARRAY
+  for (size_t i = 0; i < kWheels; i++) {
+    m_drive[i]->StopMotor();
+    m_steer[i]->StopMotor();
+  }
+#else
   m_fl_drive_motor.StopMotor();
   m_fr_drive_motor.StopMotor();
   m_rl_drive_motor.StopMotor();
@@ -282,7 +306,7 @@ void SwerveDrive::StopMotor() {
   m_fr_steer_motor.StopMotor();
   m_rl_steer_motor.StopMotor();
   m_rr_steer_motor.StopMotor();
-
+#endif
   m_safetyHelper.Feed();
 }
 
@@ -295,6 +319,32 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
 
   DBG;
   builder.SetSmartDashboardType("SwerveDrive");
+#ifdef USE_ARRAY
+  builder.AddDoubleProperty("Front Left Motor Speed",
+                            [=]() { return m_drive[FL]->Get(); },
+                            [=](double value) { m_drive[FL]->Set(value); });
+  builder.AddDoubleProperty("Front Right Motor Speed",
+                            [=]() { return m_drive[FR]->Get(); },
+                            [=](double value) { m_drive[FR]->Set(value); });
+  builder.AddDoubleProperty("Rear Left Motor Speed",
+                            [=]() { return m_drive[RL]->Get(); },
+                            [=](double value) { m_drive[RL]->Set(value); });
+  builder.AddDoubleProperty("Rear Right Motor Speed",
+                            [=]() { return m_drive[RR]->Get(); },
+                            [=](double value) { m_drive[RR]->Set(value); });
+  builder.AddDoubleProperty("Front Left Motor Angle",
+                            [=]() { return m_steer[FL]->Get(); },
+                            [=](double value) { m_steer[FL]->Set(value); });
+  builder.AddDoubleProperty("Front Right Motor Angle",
+                            [=]() { return m_steer[FR]->Get(); },
+                            [=](double value) { m_steer[FR]->Set(value); });
+  builder.AddDoubleProperty("Rear Left Motor Angle",
+                            [=]() { return m_steer[RL]->Get(); },
+                            [=](double value) { m_steer[RL]->Set(value); });
+  builder.AddDoubleProperty("Rear Right Motor Angle",
+                            [=]() { return m_steer[RR]->Get(); },
+                            [=](double value) { m_steer[RR]->Set(value); });
+#else
   builder.AddDoubleProperty("Front Left Motor Speed",
                             [=]() { return m_fl_drive_motor.Get(); },
                             [=](double value) { m_fl_drive_motor.Set(value); });
@@ -319,6 +369,7 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
   builder.AddDoubleProperty("Rear Right Motor Angle",
                             [=]() { return m_rr_steer_motor.Get(); },
                             [=](double value) { m_rr_steer_motor.Set(value); });
+#endif
 }
 
 // Borrowed from RobotDrive

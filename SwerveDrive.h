@@ -92,8 +92,8 @@ class SwerveDrive : public RobotDriveBase {
  private:
 #define xUSE_ARRAY
 #ifdef USE_ARRAY
-  SpeedController& m_drive[kWheels];
-  SpeedController& m_steer[kWheels];
+  SpeedController* m_drive[kWheels];
+  SpeedController* m_steer[kWheels];
 #else
   SpeedController& m_fl_drive_motor;
   SpeedController& m_rl_drive_motor;
