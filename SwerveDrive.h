@@ -90,20 +90,8 @@ class SwerveDrive : public RobotDriveBase {
   void RotateVector(double& x, double& y, double angle);
 
  private:
-#define xUSE_ARRAY
-#ifdef USE_ARRAY
   SpeedController* m_drive[kWheels];
   SpeedController* m_steer[kWheels];
-#else
-  SpeedController& m_fl_drive_motor;
-  SpeedController& m_rl_drive_motor;
-  SpeedController& m_fr_drive_motor;
-  SpeedController& m_rr_drive_motor;
-  SpeedController& m_fl_steer_motor;
-  SpeedController& m_rl_steer_motor;
-  SpeedController& m_fr_steer_motor;
-  SpeedController& m_rr_steer_motor;
-#endif
   double m_base_width;
   double m_base_length;
   Wheel *m_wheel[kWheels];

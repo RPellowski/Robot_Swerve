@@ -15,10 +15,8 @@
 #include <chrono>
 #include <libgen.h>
 #include <stdio.h>
-//#include "/home/rob/utils/dbg"
 #define DBG      DBGST(" ")
 #define DBGz(a)  DBGST("%s",(a))
-//#undef DBGST
 #define DBGST(a,...) \
   do { \
     std::string f;                                                     \
@@ -320,7 +318,6 @@ using namespace frc;
 #define LOCAL_TEST
 #include "SwerveDrive.h"
 #include "SwerveDrive.cpp"
-#define countof(a) (sizeof(a)/sizeof(a[0]))
 
 void test_wheel() {
 #if 0
@@ -359,7 +356,7 @@ void test_wheel() {
                       new Wheel(-4.,  4.),
                       new Wheel( 4.,  4.)
                     };
-  for (int i = 0; i < countof(wheel); i++) {
+  for (int i = 0; i < kWheels; i++) {
     DBGz("---");
     wheel[i]->ApplyTranslationAndRotation(1., -1., 1.);
     //wheel[i]->ApplyTranslationAndRotation(1., 1.1, 1.);
@@ -372,7 +369,7 @@ void test_wheel() {
     //wheel[i]->ApplyTranslationAndRotation(0., 1., 0.);
     //wheel[i]->ApplyTranslationAndRotation(-1., 0., 0.);
   }
-  for (int i = 0; i < countof(wheel); i++) {
+  for (int i = 0; i < kWheels; i++) {
     delete wheel[i];
   }
 }

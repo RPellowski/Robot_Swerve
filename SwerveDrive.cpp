@@ -17,6 +17,9 @@
  *    inside vs outside class
  *    velocity vs distance
  *
+ * References:
+ * Java version
+ *
  *----------------------------------------------------------------------------*/
 
 #include <cmath>
@@ -51,12 +54,12 @@ class Wheel {
   ~Wheel();
   static double AngleMod(double a);
   static double AngularDistance(double speed_prev, double prev, double speed_next, double next);
-  void NormalizeRotation();//double m_speed_prev, double m_angle_prev, double& m_speed, double& m_angle);
+  void NormalizeRotation();
   void ApplyTranslationAndRotation(double north, double east, double omega = 0.);
   double NormalizeSpeed(double norm);
-  double Angle();
-  double Speed();
- //private:
+
+  // Because the Wheel object is only used in this module,
+  // all member elements are made public
   double m_north;
   double m_east;
   double m_speed;
@@ -65,6 +68,7 @@ class Wheel {
   double m_speed_prev;
   double m_angle_prev;
 };
+
 Wheel::Wheel(double north, double east, double period)
   : m_north(north),
     m_east(east),
@@ -75,7 +79,9 @@ Wheel::Wheel(double north, double east, double period)
     m_angle_prev(0.) {
   DBGST("north %f east %f", m_north, m_east);
 };
+
 Wheel::~Wheel() { DBG; };
+
 double Wheel::AngleMod(double a) {
   // Put angle into range of (-180,180]
   double ret = a;
@@ -86,6 +92,7 @@ double Wheel::AngleMod(double a) {
   //DBGf2(a,ret);
   return ret;
 }
+
 double Wheel::AngularDistance(double speed_prev, double prev, double speed_next, double next) {
   // Calculate angle from previous to next
   //DBGf4(speed_prev, prev, speed_next, next);
@@ -94,7 +101,8 @@ double Wheel::AngularDistance(double speed_prev, double prev, double speed_next,
   }
   return AngleMod(next - prev);
 }
-void Wheel::NormalizeRotation() {//double m_speed_prev, double m_angle_prev, double& m_speed, double& m_angle) {
+
+void Wheel::NormalizeRotation() {
   // First, make signs equal so that angles can be compared
   double distance;
   if (m_speed_prev * m_speed < 0.) {
@@ -111,6 +119,7 @@ void Wheel::NormalizeRotation() {//double m_speed_prev, double m_angle_prev, dou
   }
   //DBGf4(m_speed_prev, m_angle_prev, m_speed, m_angle);
 };
+
 void Wheel::ApplyTranslationAndRotation(double north, double east, double omega) {
   double dX;
   double dY;
@@ -144,13 +153,12 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   NormalizeRotation();
   DBGST("speed %f angle %.1f", m_speed, m_angle);
 };
+
 double Wheel::NormalizeSpeed(double norm) {
   DBGf(norm);
   m_speed /= norm;
   return m_speed;
 };
-//double Wheel::Angle() { DBG; return m_angle; };
-//double Wheel::Speed() { DBG; return m_speed; };
 
 /* ======================================================================== */
 
@@ -164,9 +172,7 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          SpeedController& rr_steer_motor,
                          double base_width,
                          double base_length)
-    :
-#ifdef USE_ARRAY
-      m_drive{&fl_drive_motor,
+    : m_drive{&fl_drive_motor,
               &rl_drive_motor,
               &rr_drive_motor,
               &fr_drive_motor},
@@ -174,38 +180,17 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
               &rl_steer_motor,
               &rr_steer_motor,
               &fr_steer_motor},
-#else
-      m_fl_drive_motor(fl_drive_motor),
-      m_rl_drive_motor(rl_drive_motor),
-      m_fr_drive_motor(fr_drive_motor),
-      m_rr_drive_motor(rr_drive_motor),
-      m_fl_steer_motor(fl_steer_motor),
-      m_rl_steer_motor(rl_steer_motor),
-      m_fr_steer_motor(fr_steer_motor),
-      m_rr_steer_motor(rr_steer_motor),
-#endif
       m_base_width(base_width),
       m_base_length(base_length) {
   DBG;
-#ifdef USE_ARRAY
   for (size_t i = 0; i < kWheels; i++) {
     AddChild(&m_drive[i]);
     AddChild(&m_steer[i]);
   }
-#else
-  AddChild(&m_fl_drive_motor);
-  AddChild(&m_rl_drive_motor);
-  AddChild(&m_fr_drive_motor);
-  AddChild(&m_rr_drive_motor);
-  AddChild(&m_fl_steer_motor);
-  AddChild(&m_rl_steer_motor);
-  AddChild(&m_fr_steer_motor);
-  AddChild(&m_rr_steer_motor);
-#endif
 
   double l = base_length / 2.;
   double w = base_width / 2.;
-  // Assume wheels are symmetrically placed around center
+  // Assume center of robot is geometric center of wheels
   m_wheel[FL] = new Wheel( l,-w);
   m_wheel[RL] = new Wheel(-l,-w);
   m_wheel[RR] = new Wheel(-l, w);
@@ -232,43 +217,24 @@ void SwerveDrive::DriveCartesian(double north,
   // Compensate for gyro angle. Positive rotation is counter-clockwise
   RotateVector(north, east, gyro);
 
-//Insert logic here ---------------------
-
   for (size_t i = 0; i < kWheels; i++) {
     DBGz("---");
     m_wheel[i]->ApplyTranslationAndRotation(north, east, yaw);
   }
 
-  /* Scale wheel speeds */
+  // Scale wheel speeds
   NormalizeSpeeds();
 
-//done Insert logic here ---------------------
-
-  /* Set angles first */
-#ifdef USE_ARRAY
+  // Set angles first
   for (size_t i = 0; i < kWheels; i++) {
     m_steer[i]->Set(m_wheel[i]->m_angle);
   }
-#else
-  m_fl_steer_motor.Set(m_wheel[FL]->m_angle);
-  m_fr_steer_motor.Set(m_wheel[RL]->m_angle);
-  m_rr_steer_motor.Set(m_wheel[RR]->m_angle);
-  m_rl_steer_motor.Set(m_wheel[FR]->m_angle);
-#endif
 
-// Verify that wheels are accurately positioned
-
-// if every wheel is within tolerance {
-#ifdef USE_ARRAY
+  // Verify that wheels are accurately positioned
+  // If every wheel is within tolerance, then ...
   for (size_t i = 0; i < kWheels; i++) {
     m_drive[i]->Set(m_wheel[i]->m_speed);
   }
-#else
-  m_fl_drive_motor.Set(m_wheel[FL]->m_speed);
-  m_fr_drive_motor.Set(m_wheel[RL]->m_speed);
-  m_rr_drive_motor.Set(m_wheel[RR]->m_speed);
-  m_rl_drive_motor.Set(m_wheel[FR]->m_speed);
-#endif
 
   m_safetyHelper.Feed();
 }
@@ -291,22 +257,10 @@ void SwerveDrive::NormalizeSpeeds() {
 
 void SwerveDrive::StopMotor() {
   DBG;
-#ifdef USE_ARRAY
   for (size_t i = 0; i < kWheels; i++) {
     m_drive[i]->StopMotor();
     m_steer[i]->StopMotor();
   }
-#else
-  m_fl_drive_motor.StopMotor();
-  m_fr_drive_motor.StopMotor();
-  m_rl_drive_motor.StopMotor();
-  m_rr_drive_motor.StopMotor();
-
-  m_fl_steer_motor.StopMotor();
-  m_fr_steer_motor.StopMotor();
-  m_rl_steer_motor.StopMotor();
-  m_rr_steer_motor.StopMotor();
-#endif
   m_safetyHelper.Feed();
 }
 
@@ -319,7 +273,6 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
 
   DBG;
   builder.SetSmartDashboardType("SwerveDrive");
-#ifdef USE_ARRAY
   builder.AddDoubleProperty("Front Left Motor Speed",
                             [=]() { return m_drive[FL]->Get(); },
                             [=](double value) { m_drive[FL]->Set(value); });
@@ -344,35 +297,9 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
   builder.AddDoubleProperty("Rear Right Motor Angle",
                             [=]() { return m_steer[RR]->Get(); },
                             [=](double value) { m_steer[RR]->Set(value); });
-#else
-  builder.AddDoubleProperty("Front Left Motor Speed",
-                            [=]() { return m_fl_drive_motor.Get(); },
-                            [=](double value) { m_fl_drive_motor.Set(value); });
-  builder.AddDoubleProperty("Front Right Motor Speed",
-                            [=]() { return m_fr_drive_motor.Get(); },
-                            [=](double value) { m_fr_drive_motor.Set(value); });
-  builder.AddDoubleProperty("Rear Left Motor Speed",
-                            [=]() { return m_rl_drive_motor.Get(); },
-                            [=](double value) { m_rl_drive_motor.Set(value); });
-  builder.AddDoubleProperty("Rear Right Motor Speed",
-                            [=]() { return m_rr_drive_motor.Get(); },
-                            [=](double value) { m_rr_drive_motor.Set(value); });
-  builder.AddDoubleProperty("Front Left Motor Angle",
-                            [=]() { return m_fl_steer_motor.Get(); },
-                            [=](double value) { m_fl_steer_motor.Set(value); });
-  builder.AddDoubleProperty("Front Right Motor Angle",
-                            [=]() { return m_fr_steer_motor.Get(); },
-                            [=](double value) { m_fr_steer_motor.Set(value); });
-  builder.AddDoubleProperty("Rear Left Motor Angle",
-                            [=]() { return m_rl_steer_motor.Get(); },
-                            [=](double value) { m_rl_steer_motor.Set(value); });
-  builder.AddDoubleProperty("Rear Right Motor Angle",
-                            [=]() { return m_rr_steer_motor.Get(); },
-                            [=](double value) { m_rr_steer_motor.Set(value); });
-#endif
 }
 
-// Borrowed from RobotDrive
+// Modified from RobotDrive version
 void SwerveDrive::RotateVector(double& x, double& y, double angle) {
   DBGST("IN  x %f y %f (%.1f) angle %.1f", x, y, degrees(std::atan2(y, x)), angle);
   double r = radians(angle);
