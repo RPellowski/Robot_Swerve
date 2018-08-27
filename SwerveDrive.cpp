@@ -84,10 +84,15 @@ Wheel::~Wheel() { DBG; };
 double Wheel::AngleModulus(double a) {
   // Put angle into range of (-180,180]
   double ret = a;
+#if 1
+  while (ret <= 180.) { ret += 360.; }
+  while (ret > 180.) { ret -= 360; }
+#else
   double n = 360;
   while (ret < 0.) { ret += n; }
   while (ret >= n) { ret -= n; }
   if (ret > 180.) { ret -= 360.; }
+#endif
   //DBGf2(a,ret);
   return ret;
 }
@@ -177,6 +182,37 @@ SwerveDrive::SwerveDrive(int deviceNumbers[8],
             double base_width,
             double base_length) {
   DBG;
+/*
+  WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
+  WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
+  WPI_TalonSRX *m3 = new WPI_TalonSRX(3);
+  WPI_TalonSRX *m4 = new WPI_TalonSRX(4);
+  WPI_TalonSRX *m5 = new WPI_TalonSRX(5);
+  WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
+  WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
+  WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
+
+  pid[FL] = new PIDController(kP, kI, kD, new PIDSource() {
+      public double pidGet() {
+          return findEncAng(encFL.getDistance());
+      }
+      public void setPIDSourceType(PIDSourceType pidSource) {
+      }
+      public PIDSourceType getPIDSourceType() {
+          return PIDSourceType.kDisplacement;
+      }
+    }, new PIDOutput() {
+        public void pidWrite(double d) {
+          rotFL.set(d);
+        }
+      }
+    );
+    pidFL.setContinuous();
+    pidFL.setInputRange(-180, 180);
+    pidFL.setOutputRange(-1, 1);
+    pidFL.setSetpoint(0);
+    pidFL.enable();
+ */
 };
 
 SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
