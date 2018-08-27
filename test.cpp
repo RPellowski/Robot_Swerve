@@ -29,11 +29,11 @@
     fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",                 \
       __LINE__, basename((char *)__FILE__), f.c_str(), ##__VA_ARGS__); \
   } while (0)
-
-#define DBGf(a) DBGST(#a " %f ",(a))
-#define DBGf2(a,b) DBGST(#a " %f " #b " %f",(a),(b))
-#define DBGf3(a,b,c) DBGST(#a " %.1f " #b " %.1f " #c " %.1f ",(a),(b),(c))
-#define DBGf4(a,b,c,d) DBGST(#a " %.1f " #b " %.1f " #c " %.1f " #d " %.1f",(a),(b),(c),(d))
+#define f1f " %.1f "
+#define DBGf(a)        DBGST(#a f1f, (a))
+#define DBGf2(a,b)     DBGST(#a f1f #b f1f, (a), (b))
+#define DBGf3(a,b,c)   DBGST(#a f1f #b f1f #c f1f, (a), (b), (c))
+#define DBGf4(a,b,c,d) DBGST(#a f1f #b f1f #c f1f #d f1f, (a), (b), (c), (d))
 
 // -----------------------------------------------------------------
 namespace llvm {

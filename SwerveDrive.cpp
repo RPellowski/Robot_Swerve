@@ -39,7 +39,6 @@
 using namespace frc;
 
 constexpr double kPi = 3.14159265358979323846;
-enum { FL = 0, RL, RR, FR };
 #define radians(d) (d / 180.0 * kPi)
 #define degrees(r) (r * 180.0 / kPi)
 
@@ -52,18 +51,18 @@ class Wheel {
  public:
   Wheel(double north, double east, double period = 0.05);
   ~Wheel();
-  static double AngleMod(double a);
+  static double AngleModulus(double a);
   static double AngularDistance(double speed_prev, double prev, double speed_next, double next);
   void NormalizeRotation();
   void ApplyTranslationAndRotation(double north, double east, double omega = 0.);
   double NormalizeSpeed(double norm);
-
-  // Because the Wheel object is only used in this module,
-  // all member elements are made public
+  double Speed();
+  double Angle();
+ private:
   double m_north;
   double m_east;
-  double m_speed;
   double m_period;
+  double m_speed;
   double m_angle;
   double m_speed_prev;
   double m_angle_prev;
@@ -82,7 +81,7 @@ Wheel::Wheel(double north, double east, double period)
 
 Wheel::~Wheel() { DBG; };
 
-double Wheel::AngleMod(double a) {
+double Wheel::AngleModulus(double a) {
   // Put angle into range of (-180,180]
   double ret = a;
   double n = 360;
@@ -97,9 +96,9 @@ double Wheel::AngularDistance(double speed_prev, double prev, double speed_next,
   // Calculate angle from previous to next
   //DBGf4(speed_prev, prev, speed_next, next);
   if (speed_prev * speed_next < 0.) {
-    next = AngleMod(next + 180.);
+    next = AngleModulus(next + 180.);
   }
-  return AngleMod(next - prev);
+  return AngleModulus(next - prev);
 }
 
 void Wheel::NormalizeRotation() {
@@ -107,7 +106,7 @@ void Wheel::NormalizeRotation() {
   double distance;
   if (m_speed_prev * m_speed < 0.) {
     m_speed = 0. - m_speed;
-    m_angle = AngleMod(m_angle + 180.);
+    m_angle = AngleModulus(m_angle + 180.);
   }
   // Always keep new angle within 90 degrees of previous angle
   // For larger deltas, the motor is reversed and a closer angle is selected
@@ -115,7 +114,7 @@ void Wheel::NormalizeRotation() {
   //DBGf(distance);
   if (std::abs(distance) > 90) {
     m_speed = 0. - m_speed;
-    m_angle = AngleMod(m_angle + 180.);
+    m_angle = AngleModulus(m_angle + 180.);
   }
   //DBGf4(m_speed_prev, m_angle_prev, m_speed, m_angle);
 };
@@ -149,6 +148,8 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   m_angle = degrees(std::atan2(dY, dX));
   //DBGST("speed %f angle %.1f", m_speed, m_angle);
 
+  // TBD: If speed is zero, then use the previous angle
+
   // Adjust speed sign and rotation angle for range of rotation
   NormalizeRotation();
   DBGST("speed %f angle %.1f", m_speed, m_angle);
@@ -160,7 +161,23 @@ double Wheel::NormalizeSpeed(double norm) {
   return m_speed;
 };
 
+double Wheel::Speed() {
+  DBG;
+  return m_speed;
+};
+
+double Wheel::Angle() {
+  DBG;
+  return m_angle;
+};
+
 /* ======================================================================== */
+
+SwerveDrive::SwerveDrive(int deviceNumbers[8],
+            double base_width,
+            double base_length) {
+  DBG;
+};
 
 SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          SpeedController& rl_drive_motor,
@@ -188,9 +205,10 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
     AddChild(&m_steer[i]);
   }
 
+  // Assume center of robot is geometric center of wheels
+  // And geometric center is center of gravity for robot
   double l = base_length / 2.;
   double w = base_width / 2.;
-  // Assume center of robot is geometric center of wheels
   m_wheel[FL] = new Wheel( l,-w);
   m_wheel[RL] = new Wheel(-l,-w);
   m_wheel[RR] = new Wheel(-l, w);
@@ -227,13 +245,13 @@ void SwerveDrive::DriveCartesian(double north,
 
   // Set angles first
   for (size_t i = 0; i < kWheels; i++) {
-    m_steer[i]->Set(m_wheel[i]->m_angle);
+    m_steer[i]->Set(m_wheel[i]->Angle());
   }
 
   // Verify that wheels are accurately positioned
   // If every wheel is within tolerance, then ...
   for (size_t i = 0; i < kWheels; i++) {
-    m_drive[i]->Set(m_wheel[i]->m_speed);
+    m_drive[i]->Set(m_wheel[i]->Speed());
   }
 
   m_safetyHelper.Feed();
@@ -243,7 +261,7 @@ void SwerveDrive::NormalizeSpeeds() {
   double norm = 1.0;
   DBG;
   for (size_t i = 0; i < kWheels; i++) {
-    double temp = std::abs(m_wheel[i]->m_speed);
+    double temp = std::abs(m_wheel[i]->Speed());
     if (norm < temp) {
       norm = temp;
     }

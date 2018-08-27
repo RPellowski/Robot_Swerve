@@ -44,9 +44,14 @@
 
 class Wheel;
 constexpr int kWheels = 4;
+enum { FL = 0, RL, RR, FR };
 
 class SwerveDrive : public RobotDriveBase {
  public:
+  SwerveDrive(int deviceNumbers[8],
+              double base_width,
+              double base_length);
+
   SwerveDrive(SpeedController& fl_drive_motor,
               SpeedController& rl_drive_motor,
               SpeedController& fr_drive_motor,
