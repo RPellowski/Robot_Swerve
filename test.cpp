@@ -30,10 +30,10 @@
       __LINE__, basename((char *)__FILE__), f.c_str(), ##__VA_ARGS__); \
   } while (0)
 #define f1f " %.1f "
-#define DBGf(a)        DBGST(#a f1f, (a))
-#define DBGf2(a,b)     DBGST(#a f1f #b f1f, (a), (b))
-#define DBGf3(a,b,c)   DBGST(#a f1f #b f1f #c f1f, (a), (b), (c))
-#define DBGf4(a,b,c,d) DBGST(#a f1f #b f1f #c f1f #d f1f, (a), (b), (c), (d))
+#define DBGf(a)        DBGST(#a f1f                      , (a))
+#define DBGf2(a,b)     DBGST(#a f1f #b f1f               , (a), (b))
+#define DBGf3(a,b,c)   DBGST(#a f1f #b f1f #c f1f        , (a), (b), (c))
+#define DBGf4(a,b,c,d) DBGST(#a f1f #b f1f #c f1f #d f1f , (a), (b), (c), (d))
 
 // -----------------------------------------------------------------
 namespace llvm {
@@ -358,7 +358,7 @@ void test_wheel() {
                     };
   for (int i = 0; i < kWheels; i++) {
     DBGz("---");
-    wheel[i]->ApplyTranslationAndRotation(1., -1., 1.);
+    //wheel[i]->ApplyTranslationAndRotation(1., -1., 1.);
     //wheel[i]->ApplyTranslationAndRotation(1., 1.1, 1.);
     //wheel[i]->ApplyTranslationAndRotation(0., 0., -1.);
     //wheel[i]->ApplyTranslationAndRotation(0., -1., 0.);
@@ -368,6 +368,14 @@ void test_wheel() {
     //wheel[i]->ApplyTranslationAndRotation(1., 1., -1.);
     //wheel[i]->ApplyTranslationAndRotation(0., 1., 0.);
     //wheel[i]->ApplyTranslationAndRotation(-1., 0., 0.);
+
+    double distance;
+    double angle;
+    if (i==0) {Wheel::CalculateAckermanCG(1., -1., 4., 4., distance, angle);}
+    //wheel[i]->ApplyAckermann(1., 0.);
+    //wheel[i]->ApplyAckermann(1., -1.);
+    //wheel[i]->ApplyAckermann(0., -1.);
+    //wheel[i]->ApplyAckermann(-1., -1.);
   }
   for (int i = 0; i < kWheels; i++) {
     delete wheel[i];
@@ -376,7 +384,7 @@ void test_wheel() {
 
 int main()
 {
-#if 0
+#if 1
   test_wheel();
 #else
   WPI_TalonSRX *m1 = new WPI_TalonSRX(1);

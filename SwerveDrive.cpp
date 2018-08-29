@@ -55,6 +55,10 @@ class Wheel {
   static double AngularDistance(double speed_prev, double prev, double speed_next, double next);
   void NormalizeRotation();
   void ApplyTranslationAndRotation(double north, double east, double omega = 0.);
+  static void CalculateAckermanCG(double north, double east,
+                                  double cgNorth, double cgEast,
+                                  double& distance, double& angle);
+  void ApplyAckermann(double north, double east, double distance, double angle);
   double NormalizeSpeed(double norm);
   double Speed();
   double Angle();
@@ -86,7 +90,7 @@ double Wheel::AngleModulus(double a) {
   double ret = a;
 #if 1
   while (ret <= 180.) { ret += 360.; }
-  while (ret > 180.) { ret -= 360; }
+  while (ret > 180.) { ret -= 360.; }
 #else
   double n = 360;
   while (ret < 0.) { ret += n; }
@@ -160,9 +164,39 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   DBGST("speed %f angle %.1f", m_speed, m_angle);
 };
 
+void Wheel::CalculateAckermanCG(double north, double east,
+                                double cgNorth, double cgEast,
+                                double& distance, double& angle) {
+  angle = degrees(std::atan2(east, std::abs(north)));
+  constexpr double maxAngle = 45.;
+  if (angle < -maxAngle) { angle = -maxAngle; }
+  if (angle >  maxAngle) { angle =  maxAngle; }
+//rise/run=tan(theta)
+//run=rise/tan(theta);
+  distance = cgNorth / std::tan(radians(angle)) - cgEast;
+  DBGf4(north, east, distance, angle);
+}
+void Wheel::ApplyAckermann(double north, double east, double distance, double angle) {
+  double dX;
+  double dY;
+  //double dOmegaX;
+  //iidouble dOmegaY;
+  double d = 0;
+DBGf2(m_north,m_east);
+  dX = m_north + std::abs(m_north);
+  dY = m_east + std::abs(m_east) + d;
+DBGf2(dX,dY);
+  // Now speed and angle
+  //iim_speed_prev = m_speed;
+  //m_angle_prev = m_angle;
+  m_speed = std::sqrt(dX * dX + dY * dY);
+  m_angle = degrees(std::atan2(dY, dX));
+  DBGf2(m_speed, m_angle);
+};
+
 double Wheel::NormalizeSpeed(double norm) {
   DBGf(norm);
-  m_speed /= norm;
+  if (norm > 0.) { m_speed /= norm; }
   return m_speed;
 };
 
