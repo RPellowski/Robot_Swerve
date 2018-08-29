@@ -167,12 +167,11 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
 void Wheel::CalculateAckermanCG(double north, double east,
                                 double cgNorth, double cgEast,
                                 double& distance, double& angle) {
-  angle = degrees(std::atan2(east, std::abs(north)));
   constexpr double maxAngle = 45.;
+  angle = degrees(std::atan2(east, std::abs(north)));
   if (angle < -maxAngle) { angle = -maxAngle; }
   if (angle >  maxAngle) { angle =  maxAngle; }
-//rise/run=tan(theta)
-//run=rise/tan(theta);
+  if (std::abs(angle) < 0.5) { angle = 0.5; }
   distance = cgNorth / std::tan(radians(angle)) - cgEast;
   DBGf4(north, east, distance, angle);
 }
@@ -184,7 +183,7 @@ void Wheel::ApplyAckermann(double north, double east, double distance, double an
   double d = 0;
 DBGf2(m_north,m_east);
   dX = m_north + std::abs(m_north);
-  dY = m_east + std::abs(m_east) + d;
+  dY = m_east + std::abs(m_east) + distance;
 DBGf2(dX,dY);
   // Now speed and angle
   //iim_speed_prev = m_speed;

@@ -371,8 +371,8 @@ void test_wheel() {
 
     double distance;
     double angle;
-    if (i==0) {Wheel::CalculateAckermanCG(1., -1., 4., 4., distance, angle);}
-    //wheel[i]->ApplyAckermann(1., 0.);
+    if (i==0) {Wheel::CalculateAckermanCG(1., 0., 4., 4., distance, angle);}
+    wheel[i]->ApplyAckermann(1., 0., distance, angle);
     //wheel[i]->ApplyAckermann(1., -1.);
     //wheel[i]->ApplyAckermann(0., -1.);
     //wheel[i]->ApplyAckermann(-1., -1.);
