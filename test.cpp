@@ -29,7 +29,7 @@
     fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",                 \
       __LINE__, basename((char *)__FILE__), f.c_str(), ##__VA_ARGS__); \
   } while (0)
-#define f1f " %.1f "
+#define f1f " %.6f "
 #define DBGf(a)        DBGST(#a f1f                      , (a))
 #define DBGf2(a,b)     DBGST(#a f1f #b f1f               , (a), (b))
 #define DBGf3(a,b,c)   DBGST(#a f1f #b f1f #c f1f        , (a), (b), (c))
@@ -316,6 +316,7 @@ void RobotDriveBase::Normalize(double wheelSpeeds[], size_t size = 4) {
 using namespace frc;
 
 #define LOCAL_TEST
+#define SKIP_ROTATION_NORM
 #include "SwerveDrive.h"
 #include "SwerveDrive.cpp"
 
@@ -350,11 +351,14 @@ void test_wheel() {
   test(-1.,  1., 180., -1.);
   test(-1.,  -90., 90., 0.);
 #endif
+  constexpr double l = 36./2.;
+  constexpr double w = 24./2.;
+  constexpr double xxx = 1. / std::sqrt(l*l+w*w); // 0.046225 -conversion factor to make comparison using swerve tester
   Wheel *wheel[4] = {
-                      new Wheel( 4., -4.),
-                      new Wheel(-4., -4.),
-                      new Wheel(-4.,  4.),
-                      new Wheel( 4.,  4.)
+                      new Wheel( l,  w, xxx),
+                      new Wheel( l, -w, xxx),
+                      new Wheel(-l, -w, xxx),
+                      new Wheel(-l,  w, xxx)
                     };
   for (int i = 0; i < kWheels; i++) {
     DBGz("---");
@@ -368,6 +372,13 @@ void test_wheel() {
     //wheel[i]->ApplyTranslationAndRotation(1., 1., -1.);
     //wheel[i]->ApplyTranslationAndRotation(0., 1., 0.);
     //wheel[i]->ApplyTranslationAndRotation(-1., 0., 0.);
+    //wheel[i]->ApplyTranslationAndRotation(0.5, 0.5, 0.);
+    //wheel[i]->ApplyTranslationAndRotation(0., 0., 0.5);
+    //wheel[i]->ApplyTranslationAndRotation(0.5, 0.5, 0.25);
+    //wheel[i]->ApplyTranslationAndRotation(0.5, 0., 0.25);
+    //wheel[i]->ApplyTranslationAndRotation(-0.5, 0.5, 0.5);
+    //wheel[i]->ApplyTranslationAndRotation(-0.25, 0.75, 0.75);
+    //wheel[i]->ApplyTranslationAndRotation(0.3, 0.4,-0.5);
 
     double distance;
     double angle;
@@ -377,6 +388,11 @@ void test_wheel() {
     //wheel[i]->ApplyAckermann(0., -1.);
     //wheel[i]->ApplyAckermann(-1., -1.);
   }
+#if 1
+  double norm = 1.0;
+  for (size_t i = 0; i < kWheels; i++) { double temp = std::abs(wheel[i]->Speed()); if (norm < temp) { norm = temp; } }
+  if (norm > 1.0) { for (size_t i = 0; i < kWheels; i++) { wheel[i]->NormalizeSpeed(norm); } }
+#endif
   for (int i = 0; i < kWheels; i++) {
     delete wheel[i];
   }

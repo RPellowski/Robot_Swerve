@@ -133,16 +133,21 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   double dY;
   double dOmegaX;
   double dOmegaY;
-  DBGST("north %f east %f omega %.1f", north, east, omega);
+  DBGST("north %f east %f omega %.3f", north, east, omega);
 
   // Translation deltas
   dX = north;
   dY = east;
   //DBGf2(dX,dY);
   // Rotation deltas -
+#if 0
+  dOmegaX = omega * (0. - m_north) * m_period;
+  dOmegaY = omega * m_east * m_period;
+#else
   //   note that east affects X and north affects Y
   dOmegaX = omega * (0. - m_east) * m_period;
   dOmegaY = omega * m_north * m_period;
+#endif
   //DBGf2(dOmegaX,dOmegaY);
 
   // Net deltas
@@ -160,7 +165,9 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   // TBD: If speed is zero, then use the previous angle
 
   // Adjust speed sign and rotation angle for range of rotation
+#ifndef xSKIP_ROTATION_NORM
   NormalizeRotation();
+#endif
   DBGST("speed %f angle %.1f", m_speed, m_angle);
 };
 
@@ -176,17 +183,26 @@ void Wheel::CalculateAckermanCG(double north, double east,
   DBGf4(north, east, distance, angle);
 }
 void Wheel::ApplyAckermann(double north, double east, double distance, double angle) {
+  DBGf4(m_north, m_east, distance, angle);
   double dX;
   double dY;
-  //double dOmegaX;
-  //iidouble dOmegaY;
-  double d = 0;
-DBGf2(m_north,m_east);
+  double dOmegaX;
+  double dOmegaY;
+  double omega = radians(angle);
   dX = m_north + std::abs(m_north);
-  dY = m_east + std::abs(m_east) + distance;
-DBGf2(dX,dY);
+  dY = m_east + std::abs(m_east);
+  DBGf2(dX,dY);
+
+  dOmegaX = omega * (0. - m_east) * m_period;
+  dOmegaY = omega * m_north * m_period;
+
+  // Net deltas
+  dX += dOmegaX;
+  dY += dOmegaY;
+  //DBGf2(dX,dY);
+
   // Now speed and angle
-  //iim_speed_prev = m_speed;
+  //m_speed_prev = m_speed;
   //m_angle_prev = m_angle;
   m_speed = std::sqrt(dX * dX + dY * dY);
   m_angle = degrees(std::atan2(dY, dX));
@@ -194,18 +210,18 @@ DBGf2(dX,dY);
 };
 
 double Wheel::NormalizeSpeed(double norm) {
-  DBGf(norm);
   if (norm > 0.) { m_speed /= norm; }
+  DBGf2(norm, m_speed);
   return m_speed;
 };
 
 double Wheel::Speed() {
-  DBG;
+  DBGf(m_speed);
   return m_speed;
 };
 
 double Wheel::Angle() {
-  DBG;
+  DBGf(m_angle);
   return m_angle;
 };
 
