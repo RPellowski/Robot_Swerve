@@ -381,13 +381,13 @@ void test_wheel() {
     //wheel[i]->ApplyTranslationAndRotation(0.3, 0.4,-0.5);
 
     double distance;
-    double angle;
-    double magnitude;
     double omega;
-    if (i==0) {Wheel::CalculateAckermanCG(-1., -1.,
+    double north = 1;
+    double east = 0;
+    if (i==0) {Wheel::CalculateAckermanCG(north, east,
                std::abs(l), std::abs(w),
-               distance, angle, magnitude, omega);}
-    //wheel[i]->ApplyAckermann(1., 0., distance, angle);
+               distance, omega);}
+    wheel[i]->ApplyAckermann(north, distance, omega);
     //wheel[i]->ApplyAckermann(1., -1.);
     //wheel[i]->ApplyAckermann(0., -1.);
     //wheel[i]->ApplyAckermann(-1., -1.);

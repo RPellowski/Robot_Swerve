@@ -57,9 +57,8 @@ class Wheel {
   void ApplyTranslationAndRotation(double north, double east, double omega = 0.);
   static void CalculateAckermanCG(double north, double east,
                                   double cgNorth, double cgEast,
-                                  double& caDistance, double& angle,
-                                  double& magnitude, double& omega);
-  void ApplyAckermann(double north, double east, double distance, double angle);
+                                  double& corDistance, double& omega);
+  void ApplyAckermann(double north, double corDistance, double omega);
   double NormalizeSpeed(double norm);
   double Speed();
   double Angle();
@@ -174,46 +173,45 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
 
 void Wheel::CalculateAckermanCG(double north, double east,
                                 double cgNorth, double cgEast,
-                                double& caDistance, double& angle, double& magnitude, double& omega) {
+                                double& corDistance, double& omega) {
   constexpr double maxAngle = 45.;
+  constexpr double minAngle = 0.25;
+  double angle;
+  double magnitude;
   double cgDistance;
   angle = degrees(std::atan2(east, std::abs(north)));
   if (angle < -maxAngle) { angle = -maxAngle; }
   if (angle >  maxAngle) { angle =  maxAngle; }
-  if (std::abs(angle) < 0.5) { angle = 0.5; }
+  if (std::abs(angle) < minAngle) { angle = minAngle; }
   magnitude = std::sqrt(east * east + north * north);
   if (north < 0) { magnitude = -magnitude; }
   cgDistance = cgNorth / std::sin(radians(angle));
-  caDistance = std::sqrt(cgDistance * cgDistance - cgNorth * cgNorth);
-  if (angle < 0) { caDistance = -caDistance; }
-  omega = magnitude / caDistance;
+  corDistance = std::sqrt(cgDistance * cgDistance - cgNorth * cgNorth);
+  if (angle < 0) { corDistance = -corDistance; }
+  omega = magnitude / cgDistance;
   DBGf4(north, east, cgNorth, cgEast);
-  DBGf4(caDistance, cgDistance, magnitude, omega);
+  DBGf4(corDistance, cgDistance, magnitude, omega);
 }
-void Wheel::ApplyAckermann(double north, double east, double distance, double angle) {
-  DBGf4(m_north, m_east, distance, angle);
+void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
+  DBGf3(north, corDistance, omega);
   double dX;
   double dY;
-  double dOmegaX;
-  double dOmegaY;
-  double omega = radians(angle);
-  dX = m_north + std::abs(m_north);
-  dY = m_east + std::abs(m_east);
+  double wheelDistance;
+
+  // Angles with respect to the center of rotation
+  dX = corDistance - m_east;
+  dY = m_north + std::abs(m_north);
   DBGf2(dX,dY);
-
-  dOmegaX = omega * (0. - m_east) * m_period;
-  dOmegaY = omega * m_north * m_period;
-
-  // Net deltas
-  dX += dOmegaX;
-  dY += dOmegaY;
-  //DBGf2(dX,dY);
+  wheelDistance = std::sqrt(dX * dX + dY * dY);
 
   // Now speed and angle
-  //m_speed_prev = m_speed;
-  //m_angle_prev = m_angle;
-  m_speed = std::sqrt(dX * dX + dY * dY);
-  m_angle = degrees(std::atan2(dY, dX));
+  m_speed_prev = m_speed;
+  m_angle_prev = m_angle;
+
+  m_speed = wheelDistance * std::abs(omega);
+  if (north < 0) { m_speed = -m_speed; }
+  m_angle = degrees(std::asin(dY / wheelDistance));
+  if (corDistance < 0) { m_angle = -m_angle; }
   DBGf2(m_speed, m_angle);
 };
 
