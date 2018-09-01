@@ -383,7 +383,7 @@ void test_wheel() {
     double distance;
     double omega;
     double north = 1;
-    double east = 0;
+    double east = 0.5;
     if (i==0) {Wheel::CalculateAckermanCG(north, east,
                std::abs(l), std::abs(w),
                distance, omega);}
@@ -392,6 +392,7 @@ void test_wheel() {
     //wheel[i]->ApplyAckermann(0., -1.);
     //wheel[i]->ApplyAckermann(-1., -1.);
   }
+  DBGz("---");
 #if 1
   double norm = 1.0;
   for (size_t i = 0; i < kWheels; i++) { double temp = std::abs(wheel[i]->Speed()); if (norm < temp) { norm = temp; } }

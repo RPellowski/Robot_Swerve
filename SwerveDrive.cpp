@@ -88,22 +88,13 @@ Wheel::~Wheel() { DBG; };
 double Wheel::AngleModulus(double a) {
   // Put angle into range of (-180,180]
   double ret = a;
-#if 1
   while (ret <= 180.) { ret += 360.; }
   while (ret > 180.) { ret -= 360.; }
-#else
-  double n = 360;
-  while (ret < 0.) { ret += n; }
-  while (ret >= n) { ret -= n; }
-  if (ret > 180.) { ret -= 360.; }
-#endif
-  //DBGf2(a,ret);
   return ret;
 }
 
 double Wheel::AngularDistance(double speed_prev, double prev, double speed_next, double next) {
   // Calculate angle from previous to next
-  //DBGf4(speed_prev, prev, speed_next, next);
   if (speed_prev * speed_next < 0.) {
     next = AngleModulus(next + 180.);
   }
@@ -120,12 +111,10 @@ void Wheel::NormalizeRotation() {
   // Always keep new angle within 90 degrees of previous angle
   // For larger deltas, the motor is reversed and a closer angle is selected
   distance = AngularDistance(m_speed_prev, m_angle_prev, m_speed, m_angle);
-  //DBGf(distance);
   if (std::abs(distance) > 90) {
     m_speed = 0. - m_speed;
     m_angle = AngleModulus(m_angle + 180.);
   }
-  //DBGf4(m_speed_prev, m_angle_prev, m_speed, m_angle);
 };
 
 void Wheel::ApplyTranslationAndRotation(double north, double east, double omega) {
@@ -138,36 +127,25 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   // Translation deltas
   dX = north;
   dY = east;
-  //DBGf2(dX,dY);
-  // Rotation deltas -
-#if 0
-  dOmegaX = omega * (0. - m_north) * m_period;
-  dOmegaY = omega * m_east * m_period;
-#else
-  //   note that east affects X and north affects Y
+
+  // Rotation deltas - note that east affects X and north affects Y
   dOmegaX = omega * (0. - m_east) * m_period;
   dOmegaY = omega * m_north * m_period;
-#endif
-  //DBGf2(dOmegaX,dOmegaY);
 
   // Net deltas
   dX += dOmegaX;
   dY += dOmegaY;
-  //DBGf2(dX,dY);
 
   // Now speed and angle
   m_speed_prev = m_speed;
   m_angle_prev = m_angle;
   m_speed = std::sqrt(dX * dX + dY * dY);
   m_angle = degrees(std::atan2(dY, dX));
-  //DBGST("speed %f angle %.1f", m_speed, m_angle);
 
   // TBD: If speed is zero, then use the previous angle
 
   // Adjust speed sign and rotation angle for range of rotation
-#ifndef xSKIP_ROTATION_NORM
   NormalizeRotation();
-#endif
   DBGST("speed %f angle %.1f", m_speed, m_angle);
 };
 
@@ -176,22 +154,28 @@ void Wheel::CalculateAckermanCG(double north, double east,
                                 double& corDistance, double& omega) {
   constexpr double maxAngle = 45.;
   constexpr double minAngle = 0.25;
-  double angle;
+  double steerAngle;
   double magnitude;
   double cgDistance;
-  angle = degrees(std::atan2(east, std::abs(north)));
-  if (angle < -maxAngle) { angle = -maxAngle; }
-  if (angle >  maxAngle) { angle =  maxAngle; }
-  if (std::abs(angle) < minAngle) { angle = minAngle; }
+
+  // Get steerAngle into a workable range
+  steerAngle = degrees(std::atan2(east, std::abs(north)));
+  if (steerAngle < -maxAngle) { steerAngle = -maxAngle; }
+  if (steerAngle >  maxAngle) { steerAngle =  maxAngle; }
+  if (std::abs(steerAngle) < minAngle) { steerAngle = minAngle; }
+
   magnitude = std::sqrt(east * east + north * north);
   if (north < 0) { magnitude = -magnitude; }
-  cgDistance = cgNorth / std::sin(radians(angle));
+
+  cgDistance = cgNorth / std::sin(radians(steerAngle));
   corDistance = std::sqrt(cgDistance * cgDistance - cgNorth * cgNorth);
-  if (angle < 0) { corDistance = -corDistance; }
+  if (steerAngle < 0) { corDistance = -corDistance; }
   omega = magnitude / cgDistance;
+
   DBGf4(north, east, cgNorth, cgEast);
   DBGf4(corDistance, cgDistance, magnitude, omega);
 }
+
 void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   DBGf3(north, corDistance, omega);
   double dX;
@@ -201,7 +185,6 @@ void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   // Angles with respect to the center of rotation
   dX = corDistance - m_east;
   dY = m_north + std::abs(m_north);
-  DBGf2(dX,dY);
   wheelDistance = std::sqrt(dX * dX + dY * dY);
 
   // Now speed and angle
@@ -209,9 +192,13 @@ void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   m_angle_prev = m_angle;
 
   m_speed = wheelDistance * std::abs(omega);
+  // Could be backing up
   if (north < 0) { m_speed = -m_speed; }
+
   m_angle = degrees(std::asin(dY / wheelDistance));
+  // Negative Center of Rotation is left hand turn
   if (corDistance < 0) { m_angle = -m_angle; }
+
   DBGf2(m_speed, m_angle);
 };
 
