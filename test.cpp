@@ -266,6 +266,83 @@ void WPI_TalonSRX::GetDescription(llvm::raw_ostream& desc) const { DBG_SRX("desc
 void WPI_TalonSRX::InitSendable(frc::SendableBuilder& builder) { DBG_SRX(""); }
 
 // -----------------------------------------------------------------
+enum class PIDSourceType { kDisplacement, kRate };
+
+class PIDSource {
+ public:
+  virtual void SetPIDSourceType(PIDSourceType pidSource);
+  virtual PIDSourceType GetPIDSourceType() const;
+  virtual double PIDGet() = 0;
+ protected:
+  PIDSourceType m_pidSource = PIDSourceType::kDisplacement;
+};
+void PIDSource::SetPIDSourceType(PIDSourceType pidSource) { DBG; m_pidSource = pidSource; }
+PIDSourceType PIDSource::GetPIDSourceType() const { DBG; return m_pidSource; }
+
+// -----------------------------------------------------------------
+class PIDOutput {
+ public:
+  virtual void PIDWrite(double output) = 0;
+};
+
+// -----------------------------------------------------------------
+/*
+#include "Base.h"
+#include "Controller.h"
+#include "Filters/LinearDigitalFilter.h"
+#include "Notifier.h"
+#include "PIDBase.h"
+#include "PIDSource.h"
+#include "Timer.h"
+*/
+class PIDController : public PIDBase, public Controller {
+ public:
+  PIDController(double p, double i, double d,           PIDSource* source, PIDOutput* output, double period = 0.05);
+  PIDController(double p, double i, double d, double f, PIDSource* source, PIDOutput* output, double period = 0.05);
+  PIDController(double p, double i, double d,           PIDSource& source, PIDOutput& output, double period = 0.05);
+  PIDController(double p, double i, double d, double f, PIDSource& source, PIDOutput& output, double period = 0.05);
+  ~PIDController() override;
+  PIDController(const PIDController&) = delete;
+  PIDController& operator=(const PIDController) = delete;
+  void Enable() override;
+  void Disable() override;
+  void SetEnabled(bool enable);
+  bool IsEnabled() const;
+  void Reset() override;
+  void InitSendable(SendableBuilder& builder) override;
+ private:
+  //std::unique_ptr<Notifier> m_controlLoop;
+};
+/*
+#include "PIDController.h"
+#include "Notifier.h"
+#include "PIDOutput.h"
+#include "SmartDashboard/SendableBuilder.h"
+*/
+PIDController::PIDController(double Kp, double Ki, double Kd,            PIDSource* source, PIDOutput* output, double period)
+             : PIDController(Kp, Ki, Kd, 0.0, *source, *output, period ) {}
+PIDController::PIDController(double Kp, double Ki, double Kd, double Kf, PIDSource* source, PIDOutput* output, double period)
+             : PIDController(Kp, Ki, Kd, Kf,  *source, *output, period ) {}
+PIDController::PIDController(double Kp, double Ki, double Kd,            PIDSource& source, PIDOutput& output, double period)
+             : PIDController(Kp, Ki, Kd, 0.0, source, output, period   ) {}
+PIDController::PIDController(double Kp, double Ki, double Kd, double Kf, PIDSource& source, PIDOutput& output, double period)
+             : PIDBase(Kp, Ki, Kd, Kf,        source, output           ) {
+  //m_controlLoop = std::make_unique<Notifier>(&PIDController::Calculate, this);
+  //m_controlLoop->StartPeriodic(period);
+}
+
+PIDController::~PIDController() { m_controlLoop->Stop(); }
+void PIDController::Enable() { m_enabled = true; }
+void PIDController::Disable() { m_enabled = false; m_pidOutput->PIDWrite(0); }
+void PIDController::SetEnabled(bool enable) { if (enable) { Enable(); } else { Disable(); } }
+bool PIDController::IsEnabled() const { return m_enabled; }
+void PIDController::Reset() { Disable(); PIDBase::Reset(); }
+void PIDController::InitSendable(SendableBuilder& builder) {
+  PIDBase::InitSendable(builder);
+  builder.AddBooleanProperty("enabled", [=]() { return IsEnabled(); }, [=](bool value) { SetEnabled(value); });
+}
+
+// -----------------------------------------------------------------
 class RobotDriveBase : public MotorSafety, public SendableBase {
  public:
   int instances;

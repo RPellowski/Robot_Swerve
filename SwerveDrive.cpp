@@ -253,17 +253,18 @@ SwerveDrive::SwerveDrive(int deviceNumbers[8],
   pid[FL] = new PIDController(kP, kI, kD,
     new PIDSource() {
       public double pidGet() {
+        DBG;
         return findEncAng("encFL.getDistance()");
       }
       public void setPIDSourceType(PIDSourceType pidSource) {
+        DBG;
         // Disallow setting of SourceType
-      }
-      public PIDSourceType getPIDSourceType() {
-        return PIDSourceType.kDisplacement;
+        // Default is PIDSourceType.kDisplacement
       }
     },
     new PIDOutput() {
       public void pidWrite(double d) {
+        DBG;
         rotFL_set(d);
       }
     }
@@ -272,7 +273,10 @@ SwerveDrive::SwerveDrive(int deviceNumbers[8],
   pidFL.setInputRange(-180, 180);
   pidFL.setOutputRange(-1, 1);
   pidFL.setSetpoint(0);
+  // this.controllerRotate.setPercentTolerance(0.07);
   pidFL.enable();
+  //enc.setDistancePerPulse(0.875);
+  //enc.setSamplesToAverage(127);
 #endif
 };
 
