@@ -382,10 +382,9 @@ void test_wheel() {
 
     double distance;
     double omega;
-    double north = 1;
-    double east = 0.5;
-    if (i==0) {Wheel::CalculateAckermanCG(north, east,
-               std::abs(l), std::abs(w),
+    double north = -1;
+    double east = 1;
+    if (i==0) {Wheel::CalculateAckermanCG(north, east, std::abs(l),
                distance, omega);}
     wheel[i]->ApplyAckermann(north, distance, omega);
     //wheel[i]->ApplyAckermann(1., -1.);
@@ -416,13 +415,14 @@ int main()
   WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
   WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
   WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
-  SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,8.,8.);
+  SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,24.,30.);
   //s->DriveCartesian(1.,1.,90.,90.);
   //s->DriveCartesian(0.,0.,1.,0.);
   //s->DriveCartesian(1.,0.,0.,0.);
   //s->DriveCartesian(1.,1.,0.,0.);
   //s->DriveCartesian(1.,1.,0.,45.);
-  s->DriveCartesian(-1.,0.,0.,0.);
+  //s->DriveCartesian(-1.,0.,0.,0.);
+  s->DriveCartesian(1.,1.,1.,0.);
 #if 1
   s->StopMotor();
   delete s;

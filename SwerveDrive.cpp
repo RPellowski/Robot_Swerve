@@ -52,11 +52,11 @@ class Wheel {
   Wheel(double north, double east, double period = 0.05);
   ~Wheel();
   static double AngleModulus(double a);
-  static double AngularDistance(double speed_prev, double prev, double speed_next, double next);
+  static double AngularDistance(double speed_prev, double prev,
+                                double speed_next, double next);
   void NormalizeRotation();
-  void ApplyTranslationAndRotation(double north, double east, double omega = 0.);
-  static void CalculateAckermanCG(double north, double east,
-                                  double cgNorth, double cgEast,
+  void ApplyTranslationAndRotation(double north, double east, double omega = 0);
+  static void CalculateAckermanCG(double north, double east, double cgNorth,
                                   double& corDistance, double& omega);
   void ApplyAckermann(double north, double corDistance, double omega);
   double NormalizeSpeed(double norm);
@@ -93,7 +93,8 @@ double Wheel::AngleModulus(double a) {
   return ret;
 }
 
-double Wheel::AngularDistance(double speed_prev, double prev, double speed_next, double next) {
+double Wheel::AngularDistance(double speed_prev, double prev,
+                              double speed_next, double next) {
   // Calculate angle from previous to next
   if (speed_prev * speed_next < 0.) {
     next = AngleModulus(next + 180.);
@@ -129,7 +130,7 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   dY = east;
 
   // Rotation deltas - note that east affects X and north affects Y
-  dOmegaX = omega * (0. - m_east) * m_period;
+  dOmegaX = omega * -m_east * m_period;
   dOmegaY = omega * m_north * m_period;
 
   // Net deltas
@@ -149,14 +150,13 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   DBGST("speed %f angle %.1f", m_speed, m_angle);
 };
 
-void Wheel::CalculateAckermanCG(double north, double east,
-                                double cgNorth, double cgEast,
+void Wheel::CalculateAckermanCG(double north, double east, double cgNorth,
                                 double& corDistance, double& omega) {
   constexpr double maxAngle = 45.;
   constexpr double minAngle = 0.25;
   double steerAngle;
-  double magnitude;
   double cgDistance;
+  double magnitude;
 
   // Get steerAngle into a workable range
   steerAngle = degrees(std::atan2(east, std::abs(north)));
@@ -164,15 +164,18 @@ void Wheel::CalculateAckermanCG(double north, double east,
   if (steerAngle >  maxAngle) { steerAngle =  maxAngle; }
   if (std::abs(steerAngle) < minAngle) { steerAngle = minAngle; }
 
-  magnitude = std::sqrt(east * east + north * north);
-  if (north < 0) { magnitude = -magnitude; }
-
+  // Calculate distance between center of rear axle and Center of Rotation
+  // (corDistance)
   cgDistance = cgNorth / std::sin(radians(steerAngle));
   corDistance = std::sqrt(cgDistance * cgDistance - cgNorth * cgNorth);
   if (steerAngle < 0) { corDistance = -corDistance; }
+
+  // Calculate angular velocity around center of rotation (omega)
+  magnitude = std::sqrt(east * east + north * north);
+  if (north < 0) { magnitude = -magnitude; }
   omega = magnitude / cgDistance;
 
-  DBGf4(north, east, cgNorth, cgEast);
+  DBGf3(north, east, cgNorth);
   DBGf4(corDistance, cgDistance, magnitude, omega);
 }
 
@@ -182,15 +185,16 @@ void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   double dY;
   double wheelDistance;
 
-  // Angles with respect to the center of rotation
+  // Angles are now calculated with respect to the Center of Rotation
+  // (corDistance from center of rear axle)
   dX = corDistance - m_east;
   dY = m_north + std::abs(m_north);
   wheelDistance = std::sqrt(dX * dX + dY * dY);
 
-  // Now speed and angle
   m_speed_prev = m_speed;
   m_angle_prev = m_angle;
 
+  // Now speed and angle
   m_speed = wheelDistance * std::abs(omega);
   // Could be backing up
   if (north < 0) { m_speed = -m_speed; }
@@ -219,12 +223,24 @@ double Wheel::Angle() {
 };
 
 /* ======================================================================== */
-
+#if 0
+double SwerveDrive::getEncoderAngle(std::string foo) {
+  DBGz(foo.c_str());
+  return 0.;
+}
+void SwerveDrive::rotFL_set(double d) {
+  DBGf(d);
+}
+#endif
 SwerveDrive::SwerveDrive(int deviceNumbers[8],
             double base_width,
             double base_length) {
   DBG;
-/*
+#if 0
+  double kP = 1.;
+  double kI = 0.;
+  double kD = 0.;
+
   WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
   WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
   WPI_TalonSRX *m3 = new WPI_TalonSRX(3);
@@ -234,27 +250,30 @@ SwerveDrive::SwerveDrive(int deviceNumbers[8],
   WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
   WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
 
-  pid[FL] = new PIDController(kP, kI, kD, new PIDSource() {
+  pid[FL] = new PIDController(kP, kI, kD,
+    new PIDSource() {
       public double pidGet() {
-          return findEncAng(encFL.getDistance());
+        return findEncAng("encFL.getDistance()");
       }
       public void setPIDSourceType(PIDSourceType pidSource) {
+        // Disallow setting of SourceType
       }
       public PIDSourceType getPIDSourceType() {
-          return PIDSourceType.kDisplacement;
+        return PIDSourceType.kDisplacement;
       }
-    }, new PIDOutput() {
-        public void pidWrite(double d) {
-          rotFL.set(d);
-        }
+    },
+    new PIDOutput() {
+      public void pidWrite(double d) {
+        rotFL_set(d);
       }
-    );
-    pidFL.setContinuous();
-    pidFL.setInputRange(-180, 180);
-    pidFL.setOutputRange(-1, 1);
-    pidFL.setSetpoint(0);
-    pidFL.enable();
- */
+    }
+  );
+  pidFL.setContinuous();
+  pidFL.setInputRange(-180, 180);
+  pidFL.setOutputRange(-1, 1);
+  pidFL.setSetpoint(0);
+  pidFL.enable();
+#endif
 };
 
 SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
@@ -287,10 +306,12 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
   // And geometric center is center of gravity for robot
   double l = base_length / 2.;
   double w = base_width / 2.;
-  m_wheel[FL] = new Wheel( l,-w);
-  m_wheel[RL] = new Wheel(-l,-w);
-  m_wheel[RR] = new Wheel(-l, w);
-  m_wheel[FR] = new Wheel( l, w);
+  // The following normalizes rotation
+  double p = 1.0 / std::sqrt(l * l + w * w);
+  m_wheel[FL] = new Wheel( l,-w, p);
+  m_wheel[RL] = new Wheel(-l,-w, p);
+  m_wheel[RR] = new Wheel(-l, w, p);
+  m_wheel[FR] = new Wheel( l, w, p);
 
   static int instances = 0;
   ++instances;
