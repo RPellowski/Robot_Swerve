@@ -169,10 +169,12 @@ void Wheel::CalculateAckermanCG(double north, double east, double cgNorth,
   cgDistance = cgNorth / std::sin(radians(steerAngle));
   corDistance = std::sqrt(cgDistance * cgDistance - cgNorth * cgNorth);
   if (steerAngle < 0) { corDistance = -corDistance; }
+  //corDistance = std::copysign(corDistance, steerAngle);
 
   // Calculate angular velocity around center of rotation (omega)
   magnitude = std::sqrt(east * east + north * north);
   if (north < 0) { magnitude = -magnitude; }
+  //magnitude = std::copysign(magnitude, north);
   omega = magnitude / cgDistance;
 
   DBGf3(north, east, cgNorth);
@@ -198,10 +200,12 @@ void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   m_speed = wheelDistance * std::abs(omega);
   // Could be backing up
   if (north < 0) { m_speed = -m_speed; }
+  //m_speed = std::copysign(m_speed, north);
 
   m_angle = degrees(std::asin(dY / wheelDistance));
   // Negative Center of Rotation is left hand turn
   if (corDistance < 0) { m_angle = -m_angle; }
+  //m_angle = std::copysign(m_angle, corDistance);
 
   DBGf2(m_speed, m_angle);
 };

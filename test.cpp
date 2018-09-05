@@ -34,7 +34,7 @@
 #define DBGf2(a,b)     DBGST(#a f1f #b f1f               , (a), (b))
 #define DBGf3(a,b,c)   DBGST(#a f1f #b f1f #c f1f        , (a), (b), (c))
 #define DBGf4(a,b,c,d) DBGST(#a f1f #b f1f #c f1f #d f1f , (a), (b), (c), (d))
-
+#if BOO
 // -----------------------------------------------------------------
 namespace llvm {
   typedef std::ostream raw_ostream;
@@ -280,9 +280,177 @@ void PIDSource::SetPIDSourceType(PIDSourceType pidSource) { DBG; m_pidSource = p
 PIDSourceType PIDSource::GetPIDSourceType() const { DBG; return m_pidSource; }
 
 // -----------------------------------------------------------------
-class PIDOutput {
+class Controller {
  public:
-  virtual void PIDWrite(double output) = 0;
+  virtual ~Controller() = default;
+  virtual void Enable() = 0;
+  virtual void Disable() = 0;
+};
+
+// -----------------------------------------------------------------
+class PIDInterface {
+  virtual void SetPID(double p, double i, double d) = 0;
+  virtual double GetP() const = 0;
+  virtual double GetI() const = 0;
+  virtual double GetD() const = 0;
+  virtual void SetSetpoint(double setpoint) = 0;
+  virtual double GetSetpoint() const = 0;
+  virtual void Reset() = 0;
+};
+
+// -----------------------------------------------------------------
+class LinearDigitalFilter : public Filter {
+ public:
+  LinearDigitalFilter(PIDSource& source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains);
+  LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains);
+  //static LinearDigitalFilter SinglePoleIIR(PIDSource& source, double timeConstant, double period);
+  //static LinearDigitalFilter HighPass(PIDSource& source, double timeConstant, double period);
+  //static LinearDigitalFilter MovingAverage(PIDSource& source, int taps);
+  //static LinearDigitalFilter SinglePoleIIR(std::shared_ptr<PIDSource> source, double timeConstant, double period);
+  //static LinearDigitalFilter HighPass(std::shared_ptr<PIDSource> source, double timeConstant, double period);
+  static LinearDigitalFilter MovingAverage(std::shared_ptr<PIDSource> source, int taps);
+  double Get() const override;
+  void Reset() override;
+  double PIDGet() override;
+ private:
+  circular_buffer<double> m_inputs;
+  circular_buffer<double> m_outputs;
+  std::vector<double> m_inputGains;
+  std::vector<double> m_outputGains;
+};
+LinearDigitalFilter::LinearDigitalFilter(PIDSource& source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains)
+    : Filter(source),
+      m_inputs(ffGains.size()),
+      m_outputs(fbGains.size()),
+      m_inputGains(ffGains),
+      m_outputGains(fbGains) {}
+LinearDigitalFilter::LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains)
+    : Filter(source),
+      m_inputs(ffGains.size()),
+      m_outputs(fbGains.size()),
+      m_inputGains(ffGains),
+      m_outputGains(fbGains) {}
+#if 0
+LinearDigitalFilter LinearDigitalFilter::SinglePoleIIR(PIDSource& source, double timeConstant, double period) {
+  double gain = std::exp(-period / timeConstant);
+  return LinearDigitalFilter(source, {1.0 - gain}, {-gain});
+}
+LinearDigitalFilter LinearDigitalFilter::HighPass(PIDSource& source, double timeConstant, double period) {
+  double gain = std::exp(-period / timeConstant);
+  return LinearDigitalFilter(source, {gain, -gain}, {-gain});
+}
+LinearDigitalFilter LinearDigitalFilter::MovingAverage(PIDSource& source, int taps) {
+  std::vector<double> gains(taps, 1.0 / taps);
+  return LinearDigitalFilter(source, gains, {});
+}
+LinearDigitalFilter LinearDigitalFilter::SinglePoleIIR(
+    std::shared_ptr<PIDSource> source, double timeConstant, double period) {
+  double gain = std::exp(-period / timeConstant);
+  return LinearDigitalFilter(std::move(source), {1.0 - gain}, {-gain});
+}
+LinearDigitalFilter LinearDigitalFilter::HighPass(
+    std::shared_ptr<PIDSource> source, double timeConstant, double period) {
+  double gain = std::exp(-period / timeConstant);
+  return LinearDigitalFilter(std::move(source), {gain, -gain}, {-gain});
+}
+#endif
+LinearDigitalFilter LinearDigitalFilter::MovingAverage(
+    std::shared_ptr<PIDSource> source, int taps) {
+  std::vector<double> gains(taps, 1.0 / taps);
+  return LinearDigitalFilter(std::move(source), gains, {});
+}
+double LinearDigitalFilter::Get() const {
+  double retVal = 0.0;
+  for (size_t i = 0; i < m_inputGains.size(); i++) { retVal += m_inputs[i] * m_inputGains[i]; }
+  for (size_t i = 0; i < m_outputGains.size(); i++) { retVal -= m_outputs[i] * m_outputGains[i]; }
+  return retVal;
+}
+void LinearDigitalFilter::Reset() {
+  m_inputs.reset();
+  m_outputs.reset();
+}
+double LinearDigitalFilter::PIDGet() {
+  double retVal = 0.0;
+  m_inputs.push_front(PIDGetSource());
+  for (size_t i = 0; i < m_inputGains.size(); i++) { retVal += m_inputs[i] * m_inputGains[i]; }
+  for (size_t i = 0; i < m_outputGains.size(); i++) { retVal -= m_outputs[i] * m_outputGains[i]; }
+  m_outputs.push_front(retVal);
+  return retVal;
+}
+
+// -----------------------------------------------------------------
+#define WPI_DEPRECATED(a)
+class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
+ public:
+  PIDBase(double p, double i, double d, PIDSource& source, PIDOutput& output);
+  PIDBase(double p, double i, double d, double f, PIDSource& source,
+          PIDOutput& output);
+  ~PIDBase() override = default;
+  PIDBase(const PIDBase&) = delete;
+  PIDBase& operator=(const PIDBase) = delete;
+  virtual double Get() const;
+  virtual void SetContinuous(bool continuous = true);
+  virtual void SetInputRange(double minimumInput, double maximumInput);
+  virtual void SetOutputRange(double minimumOutput, double maximumOutput);
+  void SetPID(double p, double i, double d) override;
+  virtual void SetPID(double p, double i, double d, double f);
+  void SetP(double p);
+  void SetI(double i);
+  void SetD(double d);
+  void SetF(double f);
+  double GetP() const override;
+  double GetI() const override;
+  double GetD() const override;
+  virtual double GetF() const;
+  void SetSetpoint(double setpoint) override;
+  double GetSetpoint() const override;
+  double GetDeltaSetpoint() const;
+  virtual double GetError() const;
+  WPI_DEPRECATED("Use a LinearDigitalFilter as the input and GetError().")
+  virtual double GetAvgError() const;
+  virtual void SetPIDSourceType(PIDSourceType pidSource);
+  virtual PIDSourceType GetPIDSourceType() const;
+  WPI_DEPRECATED("Use SetPercentTolerance() instead.")
+  virtual void SetTolerance(double percent);
+  virtual void SetAbsoluteTolerance(double absValue);
+  virtual void SetPercentTolerance(double percentValue);
+  WPI_DEPRECATED("Use a LinearDigitalFilter as the input.")
+  virtual void SetToleranceBuffer(int buf = 1);
+  virtual bool OnTarget() const;
+  void Reset() override;
+  void PIDWrite(double output) override;
+  void InitSendable(SendableBuilder& builder) override;
+ protected:
+  bool m_enabled = false;
+  //mutable wpi::mutex m_thisMutex;
+  //mutable wpi::mutex m_pidWriteMutex;
+  PIDSource* m_pidInput;
+  PIDOutput* m_pidOutput;
+  Timer m_setpointTimer;
+  virtual void Calculate();
+  virtual double CalculateFeedForward();
+  double GetContinuousError(double error) const;
+ private:
+  double m_P;
+  double m_I;
+  double m_D;
+  double m_F;
+  double m_maximumOutput = 1.0;
+  double m_minimumOutput = -1.0;
+  double m_maximumInput = 0;
+  double m_minimumInput = 0;
+  double m_inputRange = 0;
+  bool m_continuous = false;
+  double m_prevError = 0;
+  double m_totalError = 0;
+  enum { kAbsoluteTolerance, kPercentTolerance, kNoTolerance } m_toleranceType = kNoTolerance;
+  double m_tolerance = 0.05;
+  double m_setpoint = 0;
+  double m_prevSetpoint = 0;
+  double m_error = 0;
+  double m_result = 0;
+  //std::shared_ptr<PIDSource> m_origSource;
+  LinearDigitalFilter m_filter{nullptr, {}, {}};
 };
 
 // -----------------------------------------------------------------
@@ -514,4 +682,16 @@ int main()
 #endif
 #endif
 }
+#else
 
+int main() {
+  double f = 3.5;
+  double g = -0;
+  double h = -3.5;
+  double fc = std::copysign(1.0,f);
+  double gc = std::copysign(1.0,g);
+  double hc = std::copysign(1.0,h);
+  DBGf3(fc,gc,hc);
+  printf("Hello, World!\n");
+}
+#endif
