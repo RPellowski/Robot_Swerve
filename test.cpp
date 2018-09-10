@@ -34,7 +34,7 @@
 #define DBGf2(a,b)     DBGST(#a f1f #b f1f               , (a), (b))
 #define DBGf3(a,b,c)   DBGST(#a f1f #b f1f #c f1f        , (a), (b), (c))
 #define DBGf4(a,b,c,d) DBGST(#a f1f #b f1f #c f1f #d f1f , (a), (b), (c), (d))
-#if BOO
+
 // -----------------------------------------------------------------
 namespace llvm {
   typedef std::ostream raw_ostream;
@@ -270,25 +270,35 @@ enum class PIDSourceType { kDisplacement, kRate };
 
 class PIDSource {
  public:
+  PIDSource();
+  virtual ~PIDSource();
   virtual void SetPIDSourceType(PIDSourceType pidSource);
   virtual PIDSourceType GetPIDSourceType() const;
   virtual double PIDGet() = 0;
  protected:
   PIDSourceType m_pidSource = PIDSourceType::kDisplacement;
 };
+PIDSource::PIDSource() { DBG; }
+PIDSource::~PIDSource() { DBG; }
 void PIDSource::SetPIDSourceType(PIDSourceType pidSource) { DBG; m_pidSource = pidSource; }
 PIDSourceType PIDSource::GetPIDSourceType() const { DBG; return m_pidSource; }
 
 // -----------------------------------------------------------------
 class Controller {
  public:
-  virtual ~Controller() = default;
+  Controller();
+  virtual ~Controller(); // = default;
   virtual void Enable() = 0;
   virtual void Disable() = 0;
 };
+Controller::Controller() { DBG; }
+Controller::~Controller() { DBG; }
 
 // -----------------------------------------------------------------
 class PIDInterface {
+ public:
+  PIDInterface();
+  virtual ~PIDInterface();
   virtual void SetPID(double p, double i, double d) = 0;
   virtual double GetP() const = 0;
   virtual double GetI() const = 0;
@@ -297,7 +307,73 @@ class PIDInterface {
   virtual double GetSetpoint() const = 0;
   virtual void Reset() = 0;
 };
+PIDInterface::PIDInterface() { DBG; }
+PIDInterface::~PIDInterface() { DBG; };
 
+// -----------------------------------------------------------------
+template <class T>
+struct NullDeleter {
+  void operator()(T*) const noexcept {};
+};
+
+// -----------------------------------------------------------------
+class Filter : public PIDSource {
+ public:
+  explicit Filter(PIDSource& source);
+  explicit Filter(std::shared_ptr<PIDSource> source);
+  virtual ~Filter(); // = default;
+  void SetPIDSourceType(PIDSourceType pidSource) override;
+  PIDSourceType GetPIDSourceType() const override;
+  double PIDGet() override = 0;
+  virtual double Get() const = 0;
+  virtual void Reset() = 0;
+ protected:
+  double PIDGetSource();
+ private:
+  std::shared_ptr<PIDSource> m_source;
+};
+Filter::Filter(PIDSource& source) : m_source(std::shared_ptr<PIDSource>(&source, NullDeleter<PIDSource>())) { DBG; }
+Filter::Filter(std::shared_ptr<PIDSource> source) : m_source(std::move(source)) { DBG; }
+void Filter::SetPIDSourceType(PIDSourceType pidSource) { DBG; m_source->SetPIDSourceType(pidSource); }
+PIDSourceType Filter::GetPIDSourceType() const { DBG; return m_source->GetPIDSourceType(); }
+double Filter::PIDGetSource() { DBG; return m_source->PIDGet(); }
+Filter::~Filter() { DBG; }
+
+#define FOOBAR
+#ifdef FOOBAR
+} // namespace frc
+// -----------------------------------------------------------------
+using namespace frc;
+class X : public Filter {
+ public:
+  explicit X(PIDSource& source);
+  virtual ~X();
+  double Get() const override;
+  void Reset() override;
+  double PIDGet() override;
+};
+X::X(PIDSource& source) : Filter(source) { DBG; }
+double X::Get() const {DBG; return 0.;}
+void X::Reset() {DBG;}
+double X::PIDGet() {DBG; return 0.;}
+X::~X() { DBG; };
+
+class Y :  public PIDSource {
+ public:
+  virtual ~Y();
+  virtual double PIDGet();
+};
+double Y::PIDGet() {DBG; return 0;}
+Y::~Y() { DBG; };
+
+int main()
+{
+  Y *p = new Y();
+  X *f = new X(*p);
+  delete f;
+  delete p;
+}
+#else //FOOBAR
 // -----------------------------------------------------------------
 class LinearDigitalFilter : public Filter {
  public:
@@ -452,7 +528,195 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
   //std::shared_ptr<PIDSource> m_origSource;
   LinearDigitalFilter m_filter{nullptr, {}, {}};
 };
+/*
+template <class T>
+constexpr const T& clamp(const T& value, const T& low, const T& high) {
+  return std::max(low, std::min(value, high));
+}
 
+PIDBase::PIDBase(double Kp, double Ki, double Kd, PIDSource& source,
+                 PIDOutput& output)
+    : PIDBase(Kp, Ki, Kd, 0.0, source, output) {}
+
+PIDBase::PIDBase(double Kp, double Ki, double Kd, double Kf, PIDSource& source,
+                 PIDOutput& output)
+    : SendableBase(false) {
+  m_P = Kp;
+  m_I = Ki;
+  m_D = Kd;
+  m_F = Kf;
+  m_origSource = std::shared_ptr<PIDSource>(&source, NullDeleter<PIDSource>());
+  m_filter = LinearDigitalFilter::MovingAverage(m_origSource, 1);
+  m_pidInput = &m_filter;
+  m_pidOutput = &output;
+  m_setpointTimer.Start();
+  static int instances = 0;
+  instances++;
+  SetName("PIDController", instances);
+}
+double PIDBase::Get() const {
+  return m_result;
+}
+void PIDBase::SetContinuous(bool continuous) {
+  m_continuous = continuous;
+}
+void PIDBase::SetInputRange(double minimumInput, double maximumInput) {
+  {
+    m_minimumInput = minimumInput;
+    m_maximumInput = maximumInput;
+    m_inputRange = maximumInput - minimumInput;
+  }
+  SetSetpoint(m_setpoint);
+}
+void PIDBase::SetOutputRange(double minimumOutput, double maximumOutput) { m_minimumOutput = minimumOutput; m_maximumOutput = maximumOutput; }
+void PIDBase::SetPID(double p, double i, double d) { { m_P = p; m_I = i; m_D = d; } }
+void PIDBase::SetPID(double p, double i, double d, double f) { m_P = p; m_I = i; m_D = d; m_F = f; }
+void PIDBase::SetP(double p) { m_P = p; }
+void PIDBase::SetI(double i) { m_I = i; }
+void PIDBase::SetD(double d) { m_D = d; }
+void PIDBase::SetF(double f) { m_F = f; }
+double PIDBase::GetP() const { return m_P; }
+double PIDBase::GetI() const { return m_I; }
+double PIDBase::GetD() const { return m_D; }
+double PIDBase::GetF() const { return m_F; }
+void PIDBase::SetSetpoint(double setpoint) {
+  {
+    if (m_maximumInput > m_minimumInput) {
+      if (setpoint > m_maximumInput)
+        m_setpoint = m_maximumInput;
+      else if (setpoint < m_minimumInput)
+        m_setpoint = m_minimumInput;
+      else
+        m_setpoint = setpoint;
+    } else {
+      m_setpoint = setpoint;
+    }
+  }
+}
+double PIDBase::GetSetpoint() const { return m_setpoint; }
+double PIDBase::GetDeltaSetpoint() const { return (m_setpoint - m_prevSetpoint) / m_setpointTimer.Get(); }
+double PIDBase::GetError() const { double setpoint = GetSetpoint(); { return GetContinuousError(setpoint - m_pidInput->PIDGet()); } }
+double PIDBase::GetAvgError() const { return GetError(); }
+void PIDBase::SetPIDSourceType(PIDSourceType pidSource) { m_pidInput->SetPIDSourceType(pidSource); }
+PIDSourceType PIDBase::GetPIDSourceType() const { return m_pidInput->GetPIDSourceType(); }
+void PIDBase::SetTolerance(double percent) { m_toleranceType = kPercentTolerance; m_tolerance = percent; }
+void PIDBase::SetAbsoluteTolerance(double absTolerance) { m_toleranceType = kAbsoluteTolerance; m_tolerance = absTolerance; }
+void PIDBase::SetPercentTolerance(double percent) { m_toleranceType = kPercentTolerance; m_tolerance = percent; }
+void PIDBase::SetToleranceBuffer(int bufLength) { m_filter = LinearDigitalFilter::MovingAverage(m_origSource, bufLength); m_pidInput = &m_filter; }
+bool PIDBase::OnTarget() const {
+  double error = GetError();
+  switch (m_toleranceType) {
+    case kPercentTolerance:
+      return std::fabs(error) < m_tolerance / 100 * m_inputRange;
+      break;
+    case kAbsoluteTolerance:
+      return std::fabs(error) < m_tolerance;
+      break;
+    case kNoTolerance:
+      return false;
+  }
+  return false;
+}
+void PIDBase::Reset() {
+  m_prevError = 0;
+  m_totalError = 0;
+  m_result = 0;
+}
+void PIDBase::PIDWrite(double output) { SetSetpoint(output); }
+void PIDBase::InitSendable(SendableBuilder& builder) {
+  builder.SetSmartDashboardType("PIDBase");
+  builder.SetSafeState([=]() { Reset(); });
+  builder.AddDoubleProperty("p", [=]() { return GetP(); },
+                            [=](double value) { SetP(value); });
+  builder.AddDoubleProperty("i", [=]() { return GetI(); },
+                            [=](double value) { SetI(value); });
+  builder.AddDoubleProperty("d", [=]() { return GetD(); },
+                            [=](double value) { SetD(value); });
+  builder.AddDoubleProperty("f", [=]() { return GetF(); },
+                            [=](double value) { SetF(value); });
+  builder.AddDoubleProperty("setpoint", [=]() { return GetSetpoint(); },
+                            [=](double value) { SetSetpoint(value); });
+}
+void PIDBase::Calculate() {
+  if (m_origSource == nullptr || m_pidOutput == nullptr) return;
+  bool enabled;
+    enabled = m_enabled;
+  if (enabled) {
+    double input;
+    PIDSourceType pidSourceType;
+    double P;
+    double I;
+    double D;
+    double feedForward = CalculateFeedForward();
+    double minimumOutput;
+    double maximumOutput;
+    double prevError;
+    double error;
+    double totalError;
+    {
+      input = m_pidInput->PIDGet();
+      pidSourceType = m_pidInput->GetPIDSourceType();
+      P = m_P;
+      I = m_I;
+      D = m_D;
+      minimumOutput = m_minimumOutput;
+      maximumOutput = m_maximumOutput;
+      prevError = m_prevError;
+      error = GetContinuousError(m_setpoint - input);
+      totalError = m_totalError;
+    }
+    double result;
+    if (pidSourceType == PIDSourceType::kRate) {
+      if (P != 0) {
+        totalError =
+            clamp(totalError + error, minimumOutput / P, maximumOutput / P);
+      }
+      result = D * error + P * totalError + feedForward;
+    } else {
+      if (I != 0) {
+        totalError =
+            clamp(totalError + error, minimumOutput / I, maximumOutput / I);
+      }
+      result =
+          P * error + I * totalError + D * (error - prevError) + feedForward;
+    }
+    result = clamp(result, minimumOutput, maximumOutput);
+    {
+      if (m_enabled) {
+        m_pidOutput->PIDWrite(result);
+      }
+    }
+    m_prevError = m_error;
+    m_error = error;
+    m_totalError = totalError;
+    m_result = result;
+  }
+}
+double PIDBase::CalculateFeedForward() {
+  if (m_pidInput->GetPIDSourceType() == PIDSourceType::kRate) {
+    return m_F * GetSetpoint();
+  } else {
+    double temp = m_F * GetDeltaSetpoint();
+    m_prevSetpoint = m_setpoint;
+    m_setpointTimer.Reset();
+    return temp;
+  }
+}
+double PIDBase::GetContinuousError(double error) const {
+  if (m_continuous && m_inputRange != 0) {
+    error = std::fmod(error, m_inputRange);
+    if (std::fabs(error) > m_inputRange / 2) {
+      if (error > 0) {
+        return error - m_inputRange;
+      } else {
+        return error + m_inputRange;
+      }
+    }
+  }
+  return error;
+}
+
+*/
 // -----------------------------------------------------------------
 /*
 #include "Base.h"
@@ -682,16 +946,5 @@ int main()
 #endif
 #endif
 }
-#else
+#endif // FOOBAR
 
-int main() {
-  double f = 3.5;
-  double g = -0;
-  double h = -3.5;
-  double fc = std::copysign(1.0,f);
-  double gc = std::copysign(1.0,g);
-  double hc = std::copysign(1.0,h);
-  DBGf3(fc,gc,hc);
-  printf("Hello, World!\n");
-}
-#endif
