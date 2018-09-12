@@ -42,6 +42,18 @@ namespace llvm {
 // -----------------------------------------------------------------
 namespace wpi {
   typedef std::ostream raw_ostream;
+
+  template<typename T>
+  class ArrayRef {
+    using size_type = size_t;
+    using value_type = T;
+  private:
+    const T *Data = nullptr;
+    size_type Length = 0;
+  public:
+    /*implicit*/ ArrayRef() = default;
+    size_t size() const { DBG; return Length; }
+  };
 };
 namespace frc {
 // -----------------------------------------------------------------
@@ -346,13 +358,15 @@ Filter::~Filter() { DBG; }
 using namespace frc;
 class X : public Filter {
  public:
-  explicit X(PIDSource& source);
+  explicit X(PIDSource& source, wpi::ArrayRef<double> ffGains);
   virtual ~X();
   double Get() const override;
   void Reset() override;
   double PIDGet() override;
+ private:
+  int m_s;
 };
-X::X(PIDSource& source) : Filter(source) { DBG; }
+X::X(PIDSource& source, wpi::ArrayRef<double> ffGains) : Filter(source) { m_s = ffGains.size(); DBGST("m_s %d", m_s); }
 double X::Get() const {DBG; return 0.;}
 void X::Reset() {DBG;}
 double X::PIDGet() {DBG; return 0.;}
@@ -369,9 +383,10 @@ Y::~Y() { DBG; };
 int main()
 {
   Y *p = new Y();
-  X *f = new X(*p);
-  delete f;
+  X *f = new X(*p, {});
+  wpi::ArrayRef<double> {};
   delete p;
+  delete f;
 }
 #else //FOOBAR
 // -----------------------------------------------------------------
