@@ -51,7 +51,9 @@ namespace wpi {
     const T *Data = nullptr;
     size_type Length = 0;
   public:
-    /*implicit*/ ArrayRef() = default;
+    /*implicit*/ ArrayRef() { DBG; } // = default;
+    template <size_t N> /*implicit*/ /*constexpr*/ ArrayRef(const std::array<T, N> &Arr) : Data(Arr.data()), Length(N) { DBG; }
+    template<typename A> /*implicit*/ ArrayRef(const std::vector<T, A> &Vec) : Data(Vec.data()), Length(Vec.size()) { DBG; }
     size_t size() const { DBG; return Length; }
   };
 };
@@ -351,6 +353,97 @@ PIDSourceType Filter::GetPIDSourceType() const { DBG; return m_source->GetPIDSou
 double Filter::PIDGetSource() { DBG; return m_source->PIDGet(); }
 Filter::~Filter() { DBG; }
 
+// -----------------------------------------------------------------
+class LinearDigitalFilter : public Filter {
+ public:
+  LinearDigitalFilter(PIDSource& source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains);
+  LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains);
+  //static LinearDigitalFilter SinglePoleIIR(PIDSource& source, double timeConstant, double period);
+  //static LinearDigitalFilter HighPass(PIDSource& source, double timeConstant, double period);
+  //static LinearDigitalFilter MovingAverage(PIDSource& source, int taps);
+  //static LinearDigitalFilter SinglePoleIIR(std::shared_ptr<PIDSource> source, double timeConstant, double period);
+  //static LinearDigitalFilter HighPass(std::shared_ptr<PIDSource> source, double timeConstant, double period);
+  static LinearDigitalFilter MovingAverage(std::shared_ptr<PIDSource> source, int taps);
+  double Get() const override;
+  void Reset() override;
+  double PIDGet() override;
+ private:
+  double m_val;
+  //circular_buffer<double> m_inputs;
+  //circular_buffer<double> m_outputs;
+  //std::vector<double> m_inputGains;
+  //std::vector<double> m_outputGains;
+};
+LinearDigitalFilter::LinearDigitalFilter(PIDSource& source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains)
+    : Filter(source),
+      m_val(0) { DBG; }
+      //ffGains.size()),
+      //fbGains.size()),
+      //ffGains),
+      //fbGains) {}
+LinearDigitalFilter::LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains)
+    : Filter(source),
+      m_val(0) { DBG; }
+      //ffGains.size()),
+      //fbGains.size()),
+      //ffGains),
+      //fbGains) {}
+#if 0
+LinearDigitalFilter LinearDigitalFilter::SinglePoleIIR(PIDSource& source, double timeConstant, double period) {
+  double gain = std::exp(-period / timeConstant);
+  return LinearDigitalFilter(source, {1.0 - gain}, {-gain});
+}
+LinearDigitalFilter LinearDigitalFilter::HighPass(PIDSource& source, double timeConstant, double period) {
+  double gain = std::exp(-period / timeConstant);
+  return LinearDigitalFilter(source, {gain, -gain}, {-gain});
+}
+LinearDigitalFilter LinearDigitalFilter::MovingAverage(PIDSource& source, int taps) {
+  std::vector<double> gains(taps, 1.0 / taps);
+  return LinearDigitalFilter(source, gains, {});
+}
+LinearDigitalFilter LinearDigitalFilter::SinglePoleIIR(
+    std::shared_ptr<PIDSource> source, double timeConstant, double period) {
+  double gain = std::exp(-period / timeConstant);
+  return LinearDigitalFilter(std::move(source), {1.0 - gain}, {-gain});
+}
+LinearDigitalFilter LinearDigitalFilter::HighPass(
+    std::shared_ptr<PIDSource> source, double timeConstant, double period) {
+  double gain = std::exp(-period / timeConstant);
+  return LinearDigitalFilter(std::move(source), {gain, -gain}, {-gain});
+}
+#endif
+LinearDigitalFilter LinearDigitalFilter::MovingAverage(
+    std::shared_ptr<PIDSource> source, int taps) {
+  std::vector<double> gains(taps, 1.0 / taps);
+  return LinearDigitalFilter(std::move(source), gains, {});
+}
+double LinearDigitalFilter::Get() const {
+  //double retVal = 0.0;
+  //for (size_t i = 0; i < m_inputGains.size(); i++) { retVal += m_inputs[i] * m_inputGains[i]; }
+  //for (size_t i = 0; i < m_outputGains.size(); i++) { retVal -= m_outputs[i] * m_outputGains[i]; }
+  //return retVal;
+  DBGf(m_val);
+  return m_val;
+}
+void LinearDigitalFilter::Reset() {
+  //m_inputs.reset();
+  //m_outputs.reset();
+  DBG;
+  m_val = 0;
+}
+double LinearDigitalFilter::PIDGet() {
+  //double retVal = 0.0;
+  //m_inputs.push_front(PIDGetSource());
+  //for (size_t i = 0; i < m_inputGains.size(); i++) { retVal += m_inputs[i] * m_inputGains[i]; }
+  //for (size_t i = 0; i < m_outputGains.size(); i++) { retVal -= m_outputs[i] * m_outputGains[i]; }
+  //m_outputs.push_front(retVal);
+  //m_outputs = retVal;
+  //return retVal;
+  m_val = PIDGetSource();
+  DBGf(m_val);
+  return m_val;
+}
+
 #define FOOBAR
 #ifdef FOOBAR
 } // namespace frc
@@ -382,93 +475,20 @@ Y::~Y() { DBG; };
 
 int main()
 {
+#if 1
+  Y *p = new Y();
+  LinearDigitalFilter m_filter{nullptr, {}, {}};
+  std::shared_ptr<PIDSource> m_origSource = std::shared_ptr<PIDSource>(p, NullDeleter<PIDSource>());
+  m_filter = LinearDigitalFilter::MovingAverage(m_origSource, 1);
+#else
   Y *p = new Y();
   X *f = new X(*p, {});
   wpi::ArrayRef<double> {};
   delete p;
   delete f;
+#endif
 }
 #else //FOOBAR
-// -----------------------------------------------------------------
-class LinearDigitalFilter : public Filter {
- public:
-  LinearDigitalFilter(PIDSource& source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains);
-  LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains);
-  //static LinearDigitalFilter SinglePoleIIR(PIDSource& source, double timeConstant, double period);
-  //static LinearDigitalFilter HighPass(PIDSource& source, double timeConstant, double period);
-  //static LinearDigitalFilter MovingAverage(PIDSource& source, int taps);
-  //static LinearDigitalFilter SinglePoleIIR(std::shared_ptr<PIDSource> source, double timeConstant, double period);
-  //static LinearDigitalFilter HighPass(std::shared_ptr<PIDSource> source, double timeConstant, double period);
-  static LinearDigitalFilter MovingAverage(std::shared_ptr<PIDSource> source, int taps);
-  double Get() const override;
-  void Reset() override;
-  double PIDGet() override;
- private:
-  circular_buffer<double> m_inputs;
-  circular_buffer<double> m_outputs;
-  std::vector<double> m_inputGains;
-  std::vector<double> m_outputGains;
-};
-LinearDigitalFilter::LinearDigitalFilter(PIDSource& source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains)
-    : Filter(source),
-      m_inputs(ffGains.size()),
-      m_outputs(fbGains.size()),
-      m_inputGains(ffGains),
-      m_outputGains(fbGains) {}
-LinearDigitalFilter::LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains)
-    : Filter(source),
-      m_inputs(ffGains.size()),
-      m_outputs(fbGains.size()),
-      m_inputGains(ffGains),
-      m_outputGains(fbGains) {}
-#if 0
-LinearDigitalFilter LinearDigitalFilter::SinglePoleIIR(PIDSource& source, double timeConstant, double period) {
-  double gain = std::exp(-period / timeConstant);
-  return LinearDigitalFilter(source, {1.0 - gain}, {-gain});
-}
-LinearDigitalFilter LinearDigitalFilter::HighPass(PIDSource& source, double timeConstant, double period) {
-  double gain = std::exp(-period / timeConstant);
-  return LinearDigitalFilter(source, {gain, -gain}, {-gain});
-}
-LinearDigitalFilter LinearDigitalFilter::MovingAverage(PIDSource& source, int taps) {
-  std::vector<double> gains(taps, 1.0 / taps);
-  return LinearDigitalFilter(source, gains, {});
-}
-LinearDigitalFilter LinearDigitalFilter::SinglePoleIIR(
-    std::shared_ptr<PIDSource> source, double timeConstant, double period) {
-  double gain = std::exp(-period / timeConstant);
-  return LinearDigitalFilter(std::move(source), {1.0 - gain}, {-gain});
-}
-LinearDigitalFilter LinearDigitalFilter::HighPass(
-    std::shared_ptr<PIDSource> source, double timeConstant, double period) {
-  double gain = std::exp(-period / timeConstant);
-  return LinearDigitalFilter(std::move(source), {gain, -gain}, {-gain});
-}
-#endif
-LinearDigitalFilter LinearDigitalFilter::MovingAverage(
-    std::shared_ptr<PIDSource> source, int taps) {
-  std::vector<double> gains(taps, 1.0 / taps);
-  return LinearDigitalFilter(std::move(source), gains, {});
-}
-double LinearDigitalFilter::Get() const {
-  double retVal = 0.0;
-  for (size_t i = 0; i < m_inputGains.size(); i++) { retVal += m_inputs[i] * m_inputGains[i]; }
-  for (size_t i = 0; i < m_outputGains.size(); i++) { retVal -= m_outputs[i] * m_outputGains[i]; }
-  return retVal;
-}
-void LinearDigitalFilter::Reset() {
-  m_inputs.reset();
-  m_outputs.reset();
-}
-double LinearDigitalFilter::PIDGet() {
-  double retVal = 0.0;
-  m_inputs.push_front(PIDGetSource());
-  for (size_t i = 0; i < m_inputGains.size(); i++) { retVal += m_inputs[i] * m_inputGains[i]; }
-  for (size_t i = 0; i < m_outputGains.size(); i++) { retVal -= m_outputs[i] * m_outputGains[i]; }
-  m_outputs.push_front(retVal);
-  return retVal;
-}
-
 // -----------------------------------------------------------------
 #define WPI_DEPRECATED(a)
 class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
