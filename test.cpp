@@ -42,6 +42,7 @@ namespace llvm {
 // -----------------------------------------------------------------
 namespace wpi {
   typedef std::ostream raw_ostream;
+  typedef std::string Twine;
 
   template<typename T>
   class ArrayRef {
@@ -92,6 +93,7 @@ class SendableBase : public Sendable {
   SendableBase(bool addLiveWindow = true);
   virtual ~SendableBase() override;
   void SetName(const std::string& name) override;
+  void SetName(const std::string& moduleType, int channel);
   std::string GetName() const override;
   void SetSubsystem(const std::string& subsystem) override;
   std::string GetSubsystem() const override;
@@ -103,6 +105,7 @@ class SendableBase : public Sendable {
 SendableBase::SendableBase(bool addLiveWindow) { DBG; }
 SendableBase::~SendableBase() { DBG; }
 void SendableBase::SetName(const std::string& name) { m_name = name; DBGz(name.c_str()); };
+void SendableBase::SetName(const std::string& moduleType, int channel) { SetName(moduleType + '[' + std::to_string(channel) + ']'); }
 std::string SendableBase::GetName() const { DBGz(m_name.c_str()); return m_name; }
 void SendableBase::SetSubsystem(const std::string& subsystem) { m_subsystem = subsystem; DBGz(subsystem.c_str()); };
 std::string SendableBase::GetSubsystem() const { DBGz(m_subsystem.c_str()); return m_subsystem; }
@@ -380,61 +383,6 @@ double LinearDigitalFilter::Get() const { DBGf(m_val); return m_val; }
 void LinearDigitalFilter::Reset() { DBG; m_val = 0; }
 double LinearDigitalFilter::PIDGet() { m_val = PIDGetSource(); DBGf(m_val); return m_val; }
 
-#define FOOBAR
-#ifdef FOOBAR
-} // namespace frc
-// -----------------------------------------------------------------
-using namespace frc;
-class X : public Filter {
- public:
-  explicit X(PIDSource& source, wpi::ArrayRef<double> ffGains);
-  virtual ~X();
-  double Get() const override;
-  void Reset() override;
-  double PIDGet() override;
- private:
-  int m_s;
-};
-X::X(PIDSource& source, wpi::ArrayRef<double> ffGains) : Filter(source) { m_s = ffGains.size(); DBGST("m_s %d", m_s); }
-double X::Get() const {DBG; return 0.;}
-void X::Reset() {DBG;}
-double X::PIDGet() {DBG; return 0.;}
-X::~X() { DBG; };
-
-class Y :  public PIDSource {
- public:
-  virtual ~Y();
-  virtual double PIDGet();
-};
-double Y::PIDGet() {DBG; return 1.0;}
-Y::~Y() { DBG; };
-
-int main()
-{
-#if 1
-  Y *p = new Y();
-  LinearDigitalFilter m_filter{nullptr, {}, {}};
-  std::shared_ptr<PIDSource> m_origSource = std::shared_ptr<PIDSource>(p, NullDeleter<PIDSource>());
-  m_filter = LinearDigitalFilter::MovingAverage(m_origSource, 1);
-  double v1, v2, v3;
-  v1 = m_filter.Get();
-  v2 = m_filter.PIDGet();
-  v3 = m_filter.Get();
-  DBGf3(v1, v2, v3);
-  m_filter.Reset();
-  v1 = m_filter.Get();
-  v2 = m_filter.PIDGet();
-  v3 = m_filter.Get();
-  DBGf3(v1, v2, v3);
-#else
-  Y *p = new Y();
-  X *f = new X(*p, {});
-  wpi::ArrayRef<double> {};
-  delete p;
-  delete f;
-#endif
-}
-#else //FOOBAR
 // -----------------------------------------------------------------
 #define WPI_DEPRECATED(a)
 class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
@@ -445,10 +393,10 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
   ~PIDBase() override = default;
   PIDBase(const PIDBase&) = delete;
   PIDBase& operator=(const PIDBase) = delete;
-  virtual double Get() const;
-  virtual void SetContinuous(bool continuous = true);
-  virtual void SetInputRange(double minimumInput, double maximumInput);
-  virtual void SetOutputRange(double minimumOutput, double maximumOutput);
+  //virtual double Get() const;
+  //virtual void SetContinuous(bool continuous = true);
+  //virtual void SetInputRange(double minimumInput, double maximumInput);
+  //virtual void SetOutputRange(double minimumOutput, double maximumOutput);
   void SetPID(double p, double i, double d) override;
   virtual void SetPID(double p, double i, double d, double f);
   void SetP(double p);
@@ -461,32 +409,32 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
   virtual double GetF() const;
   void SetSetpoint(double setpoint) override;
   double GetSetpoint() const override;
-  double GetDeltaSetpoint() const;
-  virtual double GetError() const;
-  WPI_DEPRECATED("Use a LinearDigitalFilter as the input and GetError().")
-  virtual double GetAvgError() const;
-  virtual void SetPIDSourceType(PIDSourceType pidSource);
-  virtual PIDSourceType GetPIDSourceType() const;
-  WPI_DEPRECATED("Use SetPercentTolerance() instead.")
-  virtual void SetTolerance(double percent);
-  virtual void SetAbsoluteTolerance(double absValue);
-  virtual void SetPercentTolerance(double percentValue);
-  WPI_DEPRECATED("Use a LinearDigitalFilter as the input.")
-  virtual void SetToleranceBuffer(int buf = 1);
-  virtual bool OnTarget() const;
+  //double GetDeltaSetpoint() const;
+  //virtual double GetError() const;
+  //WPI_DEPRECATED("Use a LinearDigitalFilter as the input and GetError().")
+  //virtual double GetAvgError() const;
+  //virtual void SetPIDSourceType(PIDSourceType pidSource);
+  //virtual PIDSourceType GetPIDSourceType() const;
+  //WPI_DEPRECATED("Use SetPercentTolerance() instead.")
+  //virtual void SetTolerance(double percent);
+  //virtual void SetAbsoluteTolerance(double absValue);
+  //virtual void SetPercentTolerance(double percentValue);
+  //WPI_DEPRECATED("Use a LinearDigitalFilter as the input.")
+  //virtual void SetToleranceBuffer(int buf = 1);
+  //virtual bool OnTarget() const;
   void Reset() override;
   void PIDWrite(double output) override;
-  void InitSendable(SendableBuilder& builder) override;
+  //void InitSendable(SendableBuilder& builder) override;
  protected:
-  bool m_enabled = false;
+  //bool m_enabled = false;
   //mutable wpi::mutex m_thisMutex;
   //mutable wpi::mutex m_pidWriteMutex;
   PIDSource* m_pidInput;
   PIDOutput* m_pidOutput;
-  Timer m_setpointTimer;
-  virtual void Calculate();
-  virtual double CalculateFeedForward();
-  double GetContinuousError(double error) const;
+  //Timer m_setpointTimer;
+  //virtual void Calculate();
+  //virtual double CalculateFeedForward();
+  //double GetContinuousError(double error) const;
  private:
   double m_P;
   double m_I;
@@ -506,21 +454,19 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
   double m_prevSetpoint = 0;
   double m_error = 0;
   double m_result = 0;
-  //std::shared_ptr<PIDSource> m_origSource;
+  std::shared_ptr<PIDSource> m_origSource;
   LinearDigitalFilter m_filter{nullptr, {}, {}};
 };
-/*
+
 template <class T>
 constexpr const T& clamp(const T& value, const T& low, const T& high) {
   return std::max(low, std::min(value, high));
 }
 
-PIDBase::PIDBase(double Kp, double Ki, double Kd, PIDSource& source,
-                 PIDOutput& output)
+PIDBase::PIDBase(double Kp, double Ki, double Kd, PIDSource& source, PIDOutput& output)
     : PIDBase(Kp, Ki, Kd, 0.0, source, output) {}
 
-PIDBase::PIDBase(double Kp, double Ki, double Kd, double Kf, PIDSource& source,
-                 PIDOutput& output)
+PIDBase::PIDBase(double Kp, double Ki, double Kd, double Kf, PIDSource& source, PIDOutput& output)
     : SendableBase(false) {
   m_P = Kp;
   m_I = Ki;
@@ -530,11 +476,12 @@ PIDBase::PIDBase(double Kp, double Ki, double Kd, double Kf, PIDSource& source,
   m_filter = LinearDigitalFilter::MovingAverage(m_origSource, 1);
   m_pidInput = &m_filter;
   m_pidOutput = &output;
-  m_setpointTimer.Start();
+  //m_setpointTimer.Start();
   static int instances = 0;
   instances++;
   SetName("PIDController", instances);
 }
+/*
 double PIDBase::Get() const {
   return m_result;
 }
@@ -550,6 +497,7 @@ void PIDBase::SetInputRange(double minimumInput, double maximumInput) {
   SetSetpoint(m_setpoint);
 }
 void PIDBase::SetOutputRange(double minimumOutput, double maximumOutput) { m_minimumOutput = minimumOutput; m_maximumOutput = maximumOutput; }
+*/
 void PIDBase::SetPID(double p, double i, double d) { { m_P = p; m_I = i; m_D = d; } }
 void PIDBase::SetPID(double p, double i, double d, double f) { m_P = p; m_I = i; m_D = d; m_F = f; }
 void PIDBase::SetP(double p) { m_P = p; }
@@ -575,6 +523,7 @@ void PIDBase::SetSetpoint(double setpoint) {
   }
 }
 double PIDBase::GetSetpoint() const { return m_setpoint; }
+/*
 double PIDBase::GetDeltaSetpoint() const { return (m_setpoint - m_prevSetpoint) / m_setpointTimer.Get(); }
 double PIDBase::GetError() const { double setpoint = GetSetpoint(); { return GetContinuousError(setpoint - m_pidInput->PIDGet()); } }
 double PIDBase::GetAvgError() const { return GetError(); }
@@ -598,12 +547,14 @@ bool PIDBase::OnTarget() const {
   }
   return false;
 }
+*/
 void PIDBase::Reset() {
   m_prevError = 0;
   m_totalError = 0;
   m_result = 0;
 }
 void PIDBase::PIDWrite(double output) { SetSetpoint(output); }
+/*
 void PIDBase::InitSendable(SendableBuilder& builder) {
   builder.SetSmartDashboardType("PIDBase");
   builder.SetSafeState([=]() { Reset(); });
@@ -698,6 +649,32 @@ double PIDBase::GetContinuousError(double error) const {
 }
 
 */
+#define FOOBAR
+#ifdef FOOBAR
+} // namespace frc
+// -----------------------------------------------------------------
+using namespace frc;
+class PS :  public PIDSource {
+ public:
+  virtual ~PS();
+  virtual double PIDGet();
+};
+double PS::PIDGet() {DBG; return 1.0;}
+PS::~PS() { DBG; };
+
+class PO : public PIDOutput {
+  public:
+   virtual void PIDWrite(double d);
+};
+void PO::PIDWrite(double d) { DBGf(d); }
+
+int main()
+{
+  PS *ps = new PS();
+  PO *po = new PO();
+  PIDBase *pb = new PIDBase(1.,0.,0.,*ps,*po);
+}
+#else //FOOBAR
 // -----------------------------------------------------------------
 /*
 #include "Base.h"
