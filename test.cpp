@@ -127,8 +127,12 @@ void SendableBuilder::AddDoubleProperty(const std::string& key,
 // -----------------------------------------------------------------
 class PIDOutput {
  public:
+  PIDOutput();
+  virtual ~PIDOutput();
   virtual void PIDWrite(double output) = 0;
 };
+PIDOutput::PIDOutput() { DBG; }
+PIDOutput::~PIDOutput() { DBG; }
 // -----------------------------------------------------------------
 class SpeedController : public PIDOutput {
  public:
@@ -409,7 +413,7 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
   virtual double GetF() const;
   void SetSetpoint(double setpoint) override;
   double GetSetpoint() const override;
-  //double GetDeltaSetpoint() const;
+  double GetDeltaSetpoint() const;
   //virtual double GetError() const;
   //WPI_DEPRECATED("Use a LinearDigitalFilter as the input and GetError().")
   //virtual double GetAvgError() const;
@@ -425,16 +429,16 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
   void Reset() override;
   void PIDWrite(double output) override;
   //void InitSendable(SendableBuilder& builder) override;
- protected:
-  //bool m_enabled = false;
+ //protected:
+  bool m_enabled = false;
   //mutable wpi::mutex m_thisMutex;
   //mutable wpi::mutex m_pidWriteMutex;
   PIDSource* m_pidInput;
   PIDOutput* m_pidOutput;
   //Timer m_setpointTimer;
-  //virtual void Calculate();
-  //virtual double CalculateFeedForward();
-  //double GetContinuousError(double error) const;
+  virtual void Calculate();
+  virtual double CalculateFeedForward();
+  double GetContinuousError(double error) const;
  private:
   double m_P;
   double m_I;
@@ -502,13 +506,13 @@ void PIDBase::SetOutputRange(double minimumOutput, double maximumOutput) { m_min
 void PIDBase::SetPID(double p, double i, double d) { DBG; { m_P = p; m_I = i; m_D = d; } }
 void PIDBase::SetPID(double p, double i, double d, double f) {  DBG; m_P = p; m_I = i; m_D = d; m_F = f; }
 void PIDBase::SetP(double p) { DBG;  m_P = p; }
-void PIDBase::SetI(double i) {  DBG; m_I = i; }
-void PIDBase::SetD(double d) {  DBG; m_D = d; }
-void PIDBase::SetF(double f) {  DBG; m_F = f; }
-double PIDBase::GetP() const {  DBG; return m_P; }
-double PIDBase::GetI() const {  DBG; return m_I; }
-double PIDBase::GetD() const {  DBG; return m_D; }
-double PIDBase::GetF() const {  DBG; return m_F; }
+void PIDBase::SetI(double i) { DBG; m_I = i; }
+void PIDBase::SetD(double d) { DBG; m_D = d; }
+void PIDBase::SetF(double f) { DBG; m_F = f; }
+double PIDBase::GetP() const { DBG; return m_P; }
+double PIDBase::GetI() const { DBG; return m_I; }
+double PIDBase::GetD() const { DBG; return m_D; }
+double PIDBase::GetF() const { DBG; return m_F; }
 void PIDBase::SetSetpoint(double setpoint) {
   {
     DBGf(setpoint);
@@ -525,8 +529,8 @@ void PIDBase::SetSetpoint(double setpoint) {
   }
 }
 double PIDBase::GetSetpoint() const { DBGf(m_setpoint); return m_setpoint; }
+double PIDBase::GetDeltaSetpoint() const { DBG; return (m_setpoint - m_prevSetpoint) /*/ m_setpointTimer.Get()*/ ; }
 /*
-double PIDBase::GetDeltaSetpoint() const { return (m_setpoint - m_prevSetpoint) / m_setpointTimer.Get(); }
 double PIDBase::GetError() const { double setpoint = GetSetpoint(); { return GetContinuousError(setpoint - m_pidInput->PIDGet()); } }
 double PIDBase::GetAvgError() const { return GetError(); }
 void PIDBase::SetPIDSourceType(PIDSourceType pidSource) { m_pidInput->SetPIDSourceType(pidSource); }
@@ -556,7 +560,7 @@ void PIDBase::Reset() {
   m_totalError = 0;
   m_result = 0;
 }
-void PIDBase::PIDWrite(double output) { SetSetpoint(output); }
+void PIDBase::PIDWrite(double output) { DBGf(output); SetSetpoint(output); }
 /*
 void PIDBase::InitSendable(SendableBuilder& builder) {
   builder.SetSmartDashboardType("PIDBase");
@@ -572,7 +576,9 @@ void PIDBase::InitSendable(SendableBuilder& builder) {
   builder.AddDoubleProperty("setpoint", [=]() { return GetSetpoint(); },
                             [=](double value) { SetSetpoint(value); });
 }
+*/
 void PIDBase::Calculate() {
+  DBG;
   if (m_origSource == nullptr || m_pidOutput == nullptr) return;
   bool enabled;
     enabled = m_enabled;
@@ -628,16 +634,18 @@ void PIDBase::Calculate() {
   }
 }
 double PIDBase::CalculateFeedForward() {
+  DBG;
   if (m_pidInput->GetPIDSourceType() == PIDSourceType::kRate) {
     return m_F * GetSetpoint();
   } else {
     double temp = m_F * GetDeltaSetpoint();
     m_prevSetpoint = m_setpoint;
-    m_setpointTimer.Reset();
+    //m_setpointTimer.Reset();
     return temp;
   }
 }
 double PIDBase::GetContinuousError(double error) const {
+  DBG;
   if (m_continuous && m_inputRange != 0) {
     error = std::fmod(error, m_inputRange);
     if (std::fabs(error) > m_inputRange / 2) {
@@ -651,7 +659,6 @@ double PIDBase::GetContinuousError(double error) const {
   return error;
 }
 
-*/
 #define FOOBAR
 #ifdef FOOBAR
 } // namespace frc
@@ -667,13 +674,17 @@ PS::~PS() { DBG; };
 
 class PO : public PIDOutput {
   public:
+   virtual ~PO();
    virtual void PIDWrite(double d);
 };
 void PO::PIDWrite(double d) { DBGf(d); }
+PO::~PO() { DBG; };
 
 int main()
 {
+DBGz("===================");
   PS *ps = new PS();
+DBGz("===================");
   PO *po = new PO();
 DBGz("===================");
   PIDBase *pb = new PIDBase(1.,0.,0.,*ps,*po);
@@ -686,6 +697,12 @@ DBGz("===================");
   pb->SetSetpoint(7.);
   double s = pb->GetSetpoint(); DBGf(s);
 DBGz("===================");
+  pb->m_enabled = true;
+  pb->Calculate();
+DBGz("===================");
+  delete pb;
+  delete po;
+  delete ps;
 }
 #else //FOOBAR
 // -----------------------------------------------------------------
