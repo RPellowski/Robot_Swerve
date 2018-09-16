@@ -19,15 +19,15 @@
 #define DBGz(a)  DBGST("%s",(a))
 #define DBGST(a,...) \
   do { \
-    std::string f;                                                     \
-    std::regex re1("\\(.*");                                           \
-    std::regex re2(".*[ :](.*::)([^\\(]*).*");                         \
-    std::string repl1 = "";                                            \
-    std::string repl2 = "$1$2";                                        \
-    f = regex_replace(__PRETTY_FUNCTION__, re1, repl1);                \
-    f = regex_replace(f,                   re2, repl2);                \
-    fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",                 \
-      __LINE__, basename((char *)__FILE__), f.c_str(), ##__VA_ARGS__); \
+    std::string _f;                                                     \
+    std::regex re1("\\(.*");                                            \
+    std::regex re2(".*[ :](.*::)([^\\(]*).*");                          \
+    std::string repl1 = "";                                             \
+    std::string repl2 = "$1$2";                                         \
+    _f = regex_replace(__PRETTY_FUNCTION__, re1, repl1);                \
+    _f = regex_replace(_f,                   re2, repl2);               \
+    fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",                  \
+      __LINE__, basename((char *)__FILE__), _f.c_str(), ##__VA_ARGS__); \
   } while (0)
 #define f1f " %.6f "
 #define DBGf(a)        DBGST(#a f1f                      , (a))
@@ -376,6 +376,7 @@ LinearDigitalFilter::LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi:
       m_val(0) { DBG; }
 LinearDigitalFilter LinearDigitalFilter::MovingAverage(
     std::shared_ptr<PIDSource> source, int taps) {
+  DBG;
   std::vector<double> gains(taps, 1.0 / taps);
   return LinearDigitalFilter(std::move(source), gains, {});
 }
@@ -388,8 +389,7 @@ double LinearDigitalFilter::PIDGet() { m_val = PIDGetSource(); DBGf(m_val); retu
 class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
  public:
   PIDBase(double p, double i, double d, PIDSource& source, PIDOutput& output);
-  PIDBase(double p, double i, double d, double f, PIDSource& source,
-          PIDOutput& output);
+  PIDBase(double p, double i, double d, double f, PIDSource& source, PIDOutput& output);
   ~PIDBase() override = default;
   PIDBase(const PIDBase&) = delete;
   PIDBase& operator=(const PIDBase) = delete;
@@ -464,10 +464,11 @@ constexpr const T& clamp(const T& value, const T& low, const T& high) {
 }
 
 PIDBase::PIDBase(double Kp, double Ki, double Kd, PIDSource& source, PIDOutput& output)
-    : PIDBase(Kp, Ki, Kd, 0.0, source, output) {}
+    : PIDBase(Kp, Ki, Kd, 0.0, source, output) { DBG; }
 
 PIDBase::PIDBase(double Kp, double Ki, double Kd, double Kf, PIDSource& source, PIDOutput& output)
     : SendableBase(false) {
+  DBGf4(Kp,Ki,Kd,Kf);
   m_P = Kp;
   m_I = Ki;
   m_D = Kd;
@@ -498,18 +499,19 @@ void PIDBase::SetInputRange(double minimumInput, double maximumInput) {
 }
 void PIDBase::SetOutputRange(double minimumOutput, double maximumOutput) { m_minimumOutput = minimumOutput; m_maximumOutput = maximumOutput; }
 */
-void PIDBase::SetPID(double p, double i, double d) { { m_P = p; m_I = i; m_D = d; } }
-void PIDBase::SetPID(double p, double i, double d, double f) { m_P = p; m_I = i; m_D = d; m_F = f; }
-void PIDBase::SetP(double p) { m_P = p; }
-void PIDBase::SetI(double i) { m_I = i; }
-void PIDBase::SetD(double d) { m_D = d; }
-void PIDBase::SetF(double f) { m_F = f; }
-double PIDBase::GetP() const { return m_P; }
-double PIDBase::GetI() const { return m_I; }
-double PIDBase::GetD() const { return m_D; }
-double PIDBase::GetF() const { return m_F; }
+void PIDBase::SetPID(double p, double i, double d) { DBG; { m_P = p; m_I = i; m_D = d; } }
+void PIDBase::SetPID(double p, double i, double d, double f) {  DBG; m_P = p; m_I = i; m_D = d; m_F = f; }
+void PIDBase::SetP(double p) { DBG;  m_P = p; }
+void PIDBase::SetI(double i) {  DBG; m_I = i; }
+void PIDBase::SetD(double d) {  DBG; m_D = d; }
+void PIDBase::SetF(double f) {  DBG; m_F = f; }
+double PIDBase::GetP() const {  DBG; return m_P; }
+double PIDBase::GetI() const {  DBG; return m_I; }
+double PIDBase::GetD() const {  DBG; return m_D; }
+double PIDBase::GetF() const {  DBG; return m_F; }
 void PIDBase::SetSetpoint(double setpoint) {
   {
+    DBGf(setpoint);
     if (m_maximumInput > m_minimumInput) {
       if (setpoint > m_maximumInput)
         m_setpoint = m_maximumInput;
@@ -522,7 +524,7 @@ void PIDBase::SetSetpoint(double setpoint) {
     }
   }
 }
-double PIDBase::GetSetpoint() const { return m_setpoint; }
+double PIDBase::GetSetpoint() const { DBGf(m_setpoint); return m_setpoint; }
 /*
 double PIDBase::GetDeltaSetpoint() const { return (m_setpoint - m_prevSetpoint) / m_setpointTimer.Get(); }
 double PIDBase::GetError() const { double setpoint = GetSetpoint(); { return GetContinuousError(setpoint - m_pidInput->PIDGet()); } }
@@ -549,6 +551,7 @@ bool PIDBase::OnTarget() const {
 }
 */
 void PIDBase::Reset() {
+  DBG;
   m_prevError = 0;
   m_totalError = 0;
   m_result = 0;
@@ -672,7 +675,17 @@ int main()
 {
   PS *ps = new PS();
   PO *po = new PO();
+DBGz("===================");
   PIDBase *pb = new PIDBase(1.,0.,0.,*ps,*po);
+  pb->SetPID(3.,2.,1.);
+  pb->SetPID(3.,2.,1.,10.);
+  double p = pb->GetP(); DBGf(p);
+  double i = pb->GetI(); DBGf(i);
+  double d = pb->GetD(); DBGf(d);
+  double f = pb->GetF(); DBGf(f);
+  pb->SetSetpoint(7.);
+  double s = pb->GetSetpoint(); DBGf(s);
+DBGz("===================");
 }
 #else //FOOBAR
 // -----------------------------------------------------------------
