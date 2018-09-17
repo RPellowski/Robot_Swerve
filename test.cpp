@@ -116,6 +116,8 @@ public:
   SendableBuilder();
   virtual ~SendableBuilder() = default;
   void SetSmartDashboardType(const std::string& name);
+  void AddBooleanProperty(const std::string& key,
+      std::function<bool()> getter, std::function<void(bool)> setter);
   void AddDoubleProperty(const std::string& key,
       std::function<double()> getter, std::function<void(double)> setter);
 };
@@ -123,6 +125,8 @@ SendableBuilder::SendableBuilder() { DBG; };
 void SendableBuilder::SetSmartDashboardType(const std::string& name) { DBGz(name.c_str()); };
 void SendableBuilder::AddDoubleProperty(const std::string& key,
     std::function<double()> getter, std::function<void(double)> setter) { DBGz(key.c_str()); };
+void SendableBuilder::AddBooleanProperty(const std::string& key,
+    std::function<bool()> getter, std::function<void(bool)> setter) { DBGz(key.c_str()); };
 
 // -----------------------------------------------------------------
 class PIDOutput {
@@ -302,7 +306,9 @@ class PIDSource {
 PIDSource::PIDSource() { DBG; }
 PIDSource::~PIDSource() { DBG; }
 void PIDSource::SetPIDSourceType(PIDSourceType pidSource) { DBG; m_pidSource = pidSource; }
-PIDSourceType PIDSource::GetPIDSourceType() const { DBG; return m_pidSource; }
+PIDSourceType PIDSource::GetPIDSourceType() const {
+  DBGz((m_pidSource == PIDSourceType::kDisplacement ? "kDisplacement": "kRate"));
+return m_pidSource; }
 
 // -----------------------------------------------------------------
 class Controller {
@@ -659,52 +665,6 @@ double PIDBase::GetContinuousError(double error) const {
   return error;
 }
 
-#define FOOBAR
-#ifdef FOOBAR
-} // namespace frc
-// -----------------------------------------------------------------
-using namespace frc;
-class PS :  public PIDSource {
- public:
-  virtual ~PS();
-  virtual double PIDGet();
-};
-double PS::PIDGet() {DBG; return 1.0;}
-PS::~PS() { DBG; };
-
-class PO : public PIDOutput {
-  public:
-   virtual ~PO();
-   virtual void PIDWrite(double d);
-};
-void PO::PIDWrite(double d) { DBGf(d); }
-PO::~PO() { DBG; };
-
-int main()
-{
-DBGz("===================");
-  PS *ps = new PS();
-DBGz("===================");
-  PO *po = new PO();
-DBGz("===================");
-  PIDBase *pb = new PIDBase(1.,0.,0.,*ps,*po);
-  pb->SetPID(3.,2.,1.);
-  pb->SetPID(3.,2.,1.,10.);
-  double p = pb->GetP(); DBGf(p);
-  double i = pb->GetI(); DBGf(i);
-  double d = pb->GetD(); DBGf(d);
-  double f = pb->GetF(); DBGf(f);
-  pb->SetSetpoint(7.);
-  double s = pb->GetSetpoint(); DBGf(s);
-DBGz("===================");
-  pb->m_enabled = true;
-  pb->Calculate();
-DBGz("===================");
-  delete pb;
-  delete po;
-  delete ps;
-}
-#else //FOOBAR
 // -----------------------------------------------------------------
 /*
 #include "Base.h"
@@ -751,17 +711,64 @@ PIDController::PIDController(double Kp, double Ki, double Kd, double Kf, PIDSour
   //m_controlLoop->StartPeriodic(period);
 }
 
-PIDController::~PIDController() { m_controlLoop->Stop(); }
-void PIDController::Enable() { m_enabled = true; }
-void PIDController::Disable() { m_enabled = false; m_pidOutput->PIDWrite(0); }
-void PIDController::SetEnabled(bool enable) { if (enable) { Enable(); } else { Disable(); } }
-bool PIDController::IsEnabled() const { return m_enabled; }
-void PIDController::Reset() { Disable(); PIDBase::Reset(); }
+PIDController::~PIDController()             { DBG; /*m_controlLoop->Stop();*/ }
+void PIDController::Enable()                { DBG; m_enabled = true; }
+void PIDController::Disable()               { DBG; m_enabled = false; m_pidOutput->PIDWrite(0); }
+void PIDController::SetEnabled(bool enable) { DBG; if (enable) { Enable(); } else { Disable(); } }
+bool PIDController::IsEnabled() const       { DBG; return m_enabled; }
+void PIDController::Reset()                 { DBG; Disable(); PIDBase::Reset(); }
 void PIDController::InitSendable(SendableBuilder& builder) {
-  PIDBase::InitSendable(builder);
+  PIDBase::InitSendable(builder); DBG;
   builder.AddBooleanProperty("enabled", [=]() { return IsEnabled(); }, [=](bool value) { SetEnabled(value); });
 }
 
+#define xFOOBAR
+#ifdef FOOBAR
+} // namespace frc
+// -----------------------------------------------------------------
+using namespace frc;
+class PS :  public PIDSource {
+ public:
+  virtual ~PS();
+  virtual double PIDGet();
+};
+double PS::PIDGet() {DBG; return 1.0;}
+PS::~PS() { DBG; };
+
+class PO : public PIDOutput {
+  public:
+   virtual ~PO();
+   virtual void PIDWrite(double d);
+};
+void PO::PIDWrite(double d) { DBGf(d); }
+PO::~PO() { DBG; };
+
+int main()
+{
+DBGz("===================");
+  PS *ps = new PS();
+  ps->SetPIDSourceType(PIDSourceType::kRate);
+DBGz("===================");
+  PO *po = new PO();
+DBGz("===================");
+  PIDBase *pb = new PIDBase(1.,0.,0.,*ps,*po);
+  pb->SetPID(3.,2.,1.);
+  pb->SetPID(3.,2.,1.,10.);
+  double p = pb->GetP(); DBGf(p);
+  double i = pb->GetI(); DBGf(i);
+  double d = pb->GetD(); DBGf(d);
+  double f = pb->GetF(); DBGf(f);
+  pb->SetSetpoint(7.);
+  double s = pb->GetSetpoint(); DBGf(s);
+DBGz("===================");
+  pb->m_enabled = true;
+  pb->Calculate();
+DBGz("===================");
+  delete pb;
+  delete po;
+  delete ps;
+}
+#else //FOOBAR
 // -----------------------------------------------------------------
 class RobotDriveBase : public MotorSafety, public SendableBase {
  public:
