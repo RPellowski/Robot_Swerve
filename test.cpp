@@ -43,6 +43,7 @@ namespace llvm {
 namespace wpi {
   typedef std::ostream raw_ostream;
   typedef std::string Twine;
+  typedef std::string& StringRef;
 
   template<typename T>
   class ArrayRef {
@@ -120,6 +121,9 @@ public:
       std::function<bool()> getter, std::function<void(bool)> setter);
   void AddDoubleProperty(const std::string& key,
       std::function<double()> getter, std::function<void(double)> setter);
+  void AddStringProperty(
+      const std::string& key, std::function<std::string()> getter,
+      std::function<void(wpi::StringRef)> setter);
 };
 SendableBuilder::SendableBuilder() { DBG; };
 void SendableBuilder::SetSmartDashboardType(const std::string& name) { DBGz(name.c_str()); };
@@ -127,6 +131,9 @@ void SendableBuilder::AddDoubleProperty(const std::string& key,
     std::function<double()> getter, std::function<void(double)> setter) { DBGz(key.c_str()); };
 void SendableBuilder::AddBooleanProperty(const std::string& key,
     std::function<bool()> getter, std::function<void(bool)> setter) { DBGz(key.c_str()); };
+void SendableBuilder::AddStringProperty(
+    const std::string& key, std::function<std::string()> getter,
+    std::function<void(wpi::StringRef)> setter) { DBGz(key.c_str()); };
 
 // -----------------------------------------------------------------
 class PIDOutput {
@@ -721,6 +728,202 @@ void PIDController::InitSendable(SendableBuilder& builder) {
   PIDBase::InitSendable(builder); DBG;
   builder.AddBooleanProperty("enabled", [=]() { return IsEnabled(); }, [=](bool value) { SetEnabled(value); });
 }
+
+// -----------------------------------------------------------------
+class ErrorBase {
+ public:
+  ErrorBase();
+  virtual ~ErrorBase() = default;
+  ErrorBase(const ErrorBase&) = delete;
+  ErrorBase& operator=(const ErrorBase&) = delete;
+};
+ErrorBase::ErrorBase() { DBG; }
+
+// -----------------------------------------------------------------
+#if 0
+class CommandGroup;
+class Subsystem;
+class Command : public ErrorBase, public SendableBase {
+  friend class CommandGroup;
+  friend class Scheduler;
+ public:
+  Command();
+  explicit Command(const wpi::Twine& name);
+  explicit Command(double timeout);
+  Command(const wpi::Twine& name, double timeout);
+  ~Command() override = default;
+  double TimeSinceInitialized() const;
+  void Requires(Subsystem* s);
+  void Start();
+  bool Run();
+  void Cancel();
+  bool IsRunning() const;
+  bool IsInitialized() const;
+  bool IsCompleted() const;
+  bool IsCanceled() const;
+  bool IsInterruptible() const;
+  void SetInterruptible(bool interruptible);
+  bool DoesRequire(Subsystem* subsystem) const;
+  typedef std::set<Subsystem*> SubsystemSet;
+  const SubsystemSet& GetRequirements() const;
+  CommandGroup* GetGroup() const;
+  void SetRunWhenDisabled(bool run);
+  bool WillRunWhenDisabled() const;
+  int GetID() const;
+ protected:
+  void SetTimeout(double timeout);
+  bool IsTimedOut() const;
+  bool AssertUnlocked(const std::string& message);
+  void SetParent(CommandGroup* parent);
+  bool IsParented() const;
+  void ClearRequirements();
+  virtual void Initialize();
+  virtual void Execute();
+  virtual bool IsFinished() = 0;
+  virtual void End();
+  virtual void Interrupted();
+  virtual void _Initialize();
+  virtual void _Interrupted();
+  virtual void _Execute();
+  virtual void _End();
+  virtual void _Cancel();
+  friend class ConditionalCommand;
+ private:
+  void LockChanges();
+  void Removed();
+  void StartRunning();
+  void StartTiming();
+  double m_startTime = -1;
+  double m_timeout;
+  bool m_initialized = false;
+  SubsystemSet m_requirements;
+  bool m_running = false;
+  bool m_interruptible = true;
+  bool m_canceled = false;
+  bool m_locked = false;
+  bool m_runWhenDisabled = false;
+  CommandGroup* m_parent = nullptr;
+  bool m_completed = false;
+  int m_commandID = m_commandCounter++;
+  static int m_commandCounter;
+ public:
+  void InitSendable(SendableBuilder& builder) override;
+};
+#endif
+// -----------------------------------------------------------------
+class Command {
+ public:
+  std::string& GetName();
+};
+
+class Subsystem : public ErrorBase, public SendableBase {
+  friend class Scheduler;
+ public:
+  explicit Subsystem(const wpi::Twine& name);
+  void SetDefaultCommand(Command* command);
+  Command* GetDefaultCommand();
+  std::string& GetDefaultCommandName();
+  void SetCurrentCommand(Command* command);
+  Command* GetCurrentCommand() const;
+  std::string& GetCurrentCommandName() const;
+  virtual void Periodic();
+  virtual void InitDefaultCommand();
+  void AddChild(const std::string& name, std::shared_ptr<Sendable> child);
+  void AddChild(const std::string& name, Sendable* child);
+  void AddChild(const std::string& name, Sendable& child);
+  void AddChild(std::shared_ptr<Sendable> child);
+  void AddChild(Sendable* child);
+  void AddChild(Sendable& child);
+ private:
+  void ConfirmCommand();
+  Command* m_currentCommand = nullptr;
+  bool m_currentCommandChanged = true;
+  Command* m_defaultCommand = nullptr;
+  bool m_initializedDefaultCommand = false;
+ public:
+  void InitSendable(SendableBuilder& builder) override;
+};
+Subsystem::Subsystem(const std::string& name) {
+  SetName(name);
+  //Scheduler::GetInstance()->RegisterSubsystem(this);
+}
+void Subsystem::SetDefaultCommand(Command* command) {
+/*
+  if (command == nullptr) {
+    m_defaultCommand = nullptr;
+  } else {
+    const auto& reqs = command->GetRequirements();
+    if (std::find(reqs.begin(), reqs.end(), this) == reqs.end()) {
+      wpi_setWPIErrorWithContext(
+          CommandIllegalUse, "A default command must require the subsystem");
+      return;
+    }
+*/
+    m_defaultCommand = command;
+//  }
+}
+Command* Subsystem::GetDefaultCommand() {
+  if (!m_initializedDefaultCommand) {
+    m_initializedDefaultCommand = true;
+    InitDefaultCommand();
+  }
+  return m_defaultCommand;
+}
+std::string& Subsystem::GetDefaultCommandName() {
+  Command* defaultCommand = GetDefaultCommand();
+  if (defaultCommand) {
+    return defaultCommand->GetName();
+  } else {
+    std::string *s = new std::string("");
+    return *s;
+  }
+}
+void Subsystem::SetCurrentCommand(Command* command) {
+  m_currentCommand = command;
+  m_currentCommandChanged = true;
+}
+Command* Subsystem::GetCurrentCommand() const { return m_currentCommand; }
+std::string& Subsystem::GetCurrentCommandName() const {
+  Command* currentCommand = GetCurrentCommand();
+  if (currentCommand) {
+    return currentCommand->GetName();
+  } else {
+    std::string *s = new std::string("");
+    return *s;
+  }
+}
+
+void Subsystem::Periodic() {}
+void Subsystem::InitDefaultCommand() {}
+void Subsystem::AddChild(const wpi::Twine& name, std::shared_ptr<Sendable> child) { AddChild(name, *child); }
+void Subsystem::AddChild(const wpi::Twine& name, Sendable* child) { AddChild(name, *child); }
+void Subsystem::AddChild(const wpi::Twine& name, Sendable& child) {
+  child.SetName(GetSubsystem(), name);
+  //LiveWindow::GetInstance()->Add(&child);
+}
+void Subsystem::AddChild(std::shared_ptr<Sendable> child) { AddChild(*child); }
+void Subsystem::AddChild(Sendable* child) { AddChild(*child); }
+void Subsystem::AddChild(Sendable& child) {
+  child.SetSubsystem(GetSubsystem());
+  //LiveWindow::GetInstance()->Add(&child);
+}
+void Subsystem::ConfirmCommand() {
+  if (m_currentCommandChanged) m_currentCommandChanged = false;
+}
+void Subsystem::InitSendable(SendableBuilder& builder) {
+  builder.SetSmartDashboardType("Subsystem");
+  builder.AddBooleanProperty(
+      ".hasDefault", [=]() { return m_defaultCommand != nullptr; }, nullptr);
+  builder.AddStringProperty(".default",
+                            [=]() { return GetDefaultCommandName(); }, nullptr);
+
+  builder.AddBooleanProperty(
+      ".hasCommand", [=]() { return m_currentCommand != nullptr; }, nullptr);
+  builder.AddStringProperty(".command",
+                            [=]() { return GetCurrentCommandName(); }, nullptr);
+}
+
+// -----------------------------------------------------------------
 
 #define xFOOBAR
 #ifdef FOOBAR
