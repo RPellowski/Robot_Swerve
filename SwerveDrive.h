@@ -90,7 +90,7 @@ class SwerveDrive : public RobotDriveBase {
   void InitSendable(SendableBuilder& builder) override;
 
   // Borrowed from RobotDrive
-  void RotateVector(double& x, double& y, double angle);
+  static void RotateVector(double& x, double& y, double angle);
 
  private:
   SpeedController* m_drive[kWheels];

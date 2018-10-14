@@ -1,24 +1,22 @@
 /*----------------------------------------------------------------------------
  * SwerveDrive
  * FRC Team 1740
- * Not exactly clear what this means, but it appears that we are forced to manage
- * PID ourselves:
- * https://www.chiefdelphi.com/forums/showthread.php?p=1726937
- *  Note that if you use the WPI-compatible wrappers in a WPI drivetrain object,
- *  you are restricted to open-loop control."
+ * Notes
+ *   It appears that we need to manage PID ourselves:
+ *     https://www.chiefdelphi.com/forums/showthread.php?p=1726937
+ *     Note that if you use the WPI-compatible wrappers in a WPI drivetrain object,
+ *     you are restricted to open-loop control."
+ *     SpeedController interface does not have a method for changing control mode
+ *     Write your own Talon wrapper implementing SpeedController that allows you
+ *     to use closed-loop control
  *
- *  SpeedController interface does not have a method for changing control mode
- *  Write your own Talon wrapper implementing SpeedController that allows you
- *   to use closed-loop control
- *
- * Questions:
- *  Can we subclass RobotDriveBase/RobotDrive(deprecated)?
- *  What motors do/do not need PID and how to manage?
- *    inside vs outside class
- *    velocity vs distance
+ *   What motors do/do not need PID?
+ *     where to use PID for velocity vs distance
+ *   Where is the best location to manage motors?
+ *     inside vs outside class
  *
  * References:
- * Java version
+ *   Java version
  *
  *----------------------------------------------------------------------------*/
 
@@ -45,7 +43,11 @@ constexpr double kPi = 3.14159265358979323846;
 /* ======================================================================== */
 
 /**
- * Conceptual representative of a Swerve wheel fixture
+ * Conceptual representative of a Swerve wheel fixture.
+ *   Has no knowledge of underlying hardware
+ *   Provides for a logical wheel assembly of two motors (drive, steer)
+ *   Preserves history
+ *   Enables calculations to adjust settings based on inputs and history
  */
 class Wheel {
  public:
@@ -72,6 +74,13 @@ class Wheel {
   double m_angle_prev;
 };
 
+/*
+ * Constructor for the wheel assembly
+ *   north - distance of wheel from the center of gravity; forward is positive
+ *   east - distance of wheel from the center of gravity; right is positive
+ *   period - the time in seconds between calls for motor activity;
+ *     used for calculating rates of angular motion
+ */
 Wheel::Wheel(double north, double east, double period)
   : m_north(north),
     m_east(east),
@@ -85,30 +94,51 @@ Wheel::Wheel(double north, double east, double period)
 
 Wheel::~Wheel() { DBG; };
 
+/*
+ * Helper function - does not modify Wheel
+ *   Given any angle, return equivalent angle in the range of (-180,180]
+ */
 double Wheel::AngleModulus(double a) {
-  // Put angle into range of (-180,180]
   double ret = a;
   while (ret <= 180.) { ret += 360.; }
   while (ret > 180.) { ret -= 360.; }
   return ret;
 }
 
+/*
+ * Helper function - does not modify Wheel
+ *
+ *  Given two angles and speeds, retun delta angle to be applied to move the
+ *    wheel from the previous angle setting to the next
+ *  Only the speed signs are used (not magnitude) to enable comparison of
+ *    angles having the same sign
+ */
 double Wheel::AngularDistance(double speed_prev, double prev,
                               double speed_next, double next) {
-  // Calculate angle from previous to next
+  // If only one sign is negative, perform adjustment so we can compare
   if (speed_prev * speed_next < 0.) {
     next = AngleModulus(next + 180.);
   }
   return AngleModulus(next - prev);
 }
 
+/*
+ * Modify Wheel - m_speed and m_angle
+ *
+ * Adjust new angle so it differs from the previous angle by less than 90 degrees
+ *   First, given previous and next, calculate the delta angle to be applied
+ *   Second, set a new angle that is within 90 degrees
+ *   Last, set new speed sign (which may be negative for reverse direction)
+ */
 void Wheel::NormalizeRotation() {
-  // First, make signs equal so that angles can be compared
   double distance;
+
+  // If only one sign is negative, perform adjustment so we can compare
   if (m_speed_prev * m_speed < 0.) {
     m_speed = 0. - m_speed;
     m_angle = AngleModulus(m_angle + 180.);
   }
+
   // Always keep new angle within 90 degrees of previous angle
   // For larger deltas, the motor is reversed and a closer angle is selected
   distance = AngularDistance(m_speed_prev, m_angle_prev, m_speed, m_angle);
@@ -118,6 +148,28 @@ void Wheel::NormalizeRotation() {
   }
 };
 
+/*
+ * Swerve drive operation
+ *
+ * Modify Wheel - m_speed_prev, m_angle_prev, m_speed, m_angle
+ *
+ * Apply new object values from three axes of input
+
+ * Inputs
+ *   north - forward velocity setting
+ *   east - right velocity setting
+ *   omega - clockwise rotation rate setting (yaw)
+ *
+ * Note: Calculation of the wheel velocity and angle is determined by
+ *   - the rotation rate omega
+ *   - the periodic sampling rate m_period
+ *
+ * Outputs
+ *   m_speed_prev - previous m_speed
+ *   m_angle_prev - previous m_angle
+ *   m_speed - new calculation
+ *   m_angle - new calculation
+ */
 void Wheel::ApplyTranslationAndRotation(double north, double east, double omega) {
   double dX;
   double dY;
@@ -137,7 +189,7 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   dX += dOmegaX;
   dY += dOmegaY;
 
-  // Now speed and angle
+  // Now assign speed and angle
   m_speed_prev = m_speed;
   m_angle_prev = m_angle;
   m_speed = std::sqrt(dX * dX + dY * dY);
@@ -150,6 +202,35 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
   DBGST("speed %f angle %.1f", m_speed, m_angle);
 };
 
+/*
+ * Helper function - does not modify Wheel
+ *
+ * Given an input vector and the distance between rear axle and robot
+ * Center of Gravity, return a distance and rotation rate
+ *
+ * Inputs
+ *   north - forward velocity setting
+ *   east - right velocity setting
+ *   cgNorth - distance between rear axle and CoG
+ *
+ * Intermediate
+ *   steerAngle - input vector based on north and east
+ *     range is minAngle to maxAngle (in any of the 4 quadrants)
+ *   cgDistance - distance between robot CoG and CoR
+ *     range is a finite value (positive for right, negative for left)
+ *
+ * Notes
+ *   Minimum steerAngle must be non-zero to calculate a finite cgDistance
+ *     The value was chosen to minimize error (couple of inches left or right
+ *       over the field length)
+ *   Maximum steerAngle was chosen to keep the steering wheels less than
+ *     90 degrees given nominal robot dimensions
+ *
+ * Outputs
+ *   corDistance - distance between Center of Rear Axle and Center of Rotation
+ *   omega - angular velocity around the Center of Rotation
+ *
+ */
 void Wheel::CalculateAckermanCG(double north, double east, double cgNorth,
                                 double& corDistance, double& omega) {
   constexpr double maxAngle = 45.;
@@ -181,14 +262,34 @@ void Wheel::CalculateAckermanCG(double north, double east, double cgNorth,
   DBGf4(corDistance, cgDistance, magnitude, omega);
 }
 
+/*
+ * Ackermann drive operation
+ *
+ * Modify Wheel - m_speed_prev, m_angle_prev, m_speed, m_angle
+ *
+ * Inputs
+ *   north - velocity in the forward direction
+ *   corDistance - distance between Center of Rear Axle and Center of Rotation
+ *   omega - angular velocity around the Center of Rotation
+ *
+ * Intermediate
+ *   wheelDistance - this wheel's distance to the Center of Rotation,
+ *     calculated knowing corDistance and the wheel's position relative to
+ *     the Center of Rear Axle (from m_north, m_east)
+ *
+ * Outputs
+ *   m_speed_prev - previous m_speed
+ *   m_angle_prev - previous m_angle
+ *   m_speed - new calculation
+ *   m_angle - new calculation
+ *
+ */
 void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   DBGf3(north, corDistance, omega);
   double dX;
   double dY;
   double wheelDistance;
 
-  // Angles are now calculated with respect to the Center of Rotation
-  // (corDistance from center of rear axle)
   dX = corDistance - m_east;
   dY = m_north + std::abs(m_north);
   wheelDistance = std::sqrt(dX * dX + dY * dY);
@@ -210,17 +311,33 @@ void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   DBGf2(m_speed, m_angle);
 };
 
+/*
+ * Given a normaliation value, apply it to the current m_speed and save
+ *
+ * modify Wheel - m_speed
+ *
+ * Input
+ *   norm - normalization value
+ * Output
+ *   m_speed - value after normalization
+ */
 double Wheel::NormalizeSpeed(double norm) {
   if (norm > 0.) { m_speed /= norm; }
   DBGf2(norm, m_speed);
   return m_speed;
 };
 
+/*
+ * Getter for speed
+ */
 double Wheel::Speed() {
   DBGf(m_speed);
   return m_speed;
 };
 
+/*
+ * Getter for angle
+ */
 double Wheel::Angle() {
   DBGf(m_angle);
   return m_angle;
@@ -333,6 +450,26 @@ SwerveDrive::~SwerveDrive() {
   }
 }
 
+/*
+ * Swerve drive operation
+ *
+ * Given set of inputs, calculate the appropriate motor settings and apply
+ *  them to the individual motors
+ *
+ * Inputs
+ *   north - forward velocity setting
+ *   east - right velocity setting
+ *   omega - clockwise rotation rate setting (yaw)
+ *   gyro - current rotation measurement relative to the field (zero at initialization)
+ *
+ * Intermediates
+ *   m_wheel[] - modify Wheel object representations with get and set logic
+ *
+ * Outputs
+ *   m_steer[] - apply steering motor settings from calculations
+ *   m_drive[] - apply drive motor settings from calculations
+ *
+ */
 void SwerveDrive::DriveCartesian(double north,
                                  double east,
                                  double yaw,
@@ -342,28 +479,43 @@ void SwerveDrive::DriveCartesian(double north,
   // Compensate for gyro angle. Positive rotation is counter-clockwise
   RotateVector(north, east, gyro);
 
+  // Perform calculations to get steer and drive settings
   for (size_t i = 0; i < kWheels; i++) {
     DBGz("---");
     m_wheel[i]->ApplyTranslationAndRotation(north, east, yaw);
   }
 
-  // Scale wheel speeds
+  // Scale wheel speeds so that a magnitude of 1. is max
   NormalizeSpeeds();
 
-  // Set angles first
+  // Set steering motor angles first
   for (size_t i = 0; i < kWheels; i++) {
     m_steer[i]->Set(m_wheel[i]->Angle());
   }
 
   // Verify that wheels are accurately positioned
   // If every wheel is within tolerance, then ...
+  // Set drive motor values
   for (size_t i = 0; i < kWheels; i++) {
     m_drive[i]->Set(m_wheel[i]->Speed());
   }
 
+  // Reset watchdog timer
   m_safetyHelper.Feed();
 }
 
+/*
+ * Wheel speed scaling
+ *
+ * Ensure all speeds are within the maximum allowed range (-1..1)
+ *
+ * Intermediates
+ *   norm - maximum magnitude of all m_wheel[] speeds
+ *
+ * Outputs
+ *   m_wheel[] - Wheel objects after each m_speed has been normalized
+ *
+ */
 void SwerveDrive::NormalizeSpeeds() {
   double norm = 1.0;
   DBG;
@@ -380,10 +532,14 @@ void SwerveDrive::NormalizeSpeeds() {
   }
 }
 
+/*
+ * Set all drive and steer motors amplitudes to zero
+ */
 void SwerveDrive::StopMotor() {
   DBG;
   for (size_t i = 0; i < kWheels; i++) {
     m_drive[i]->StopMotor();
+    // TBD - is this right? Position to zero or just set amplitude to 0?
     m_steer[i]->StopMotor();
   }
   m_safetyHelper.Feed();
@@ -424,7 +580,19 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
                             [=](double value) { m_steer[RR]->Set(value); });
 }
 
-// Modified from RobotDrive version
+/*
+ * Helper function - does not modify SwerveDrive object
+ *
+ * Apply angle of rotation to (x, y) pair and return that modified pair
+ *
+ * Inputs
+ *   x and y - values to be modified
+ *   angle - modifier
+ * Outputs
+ *   x and y - values after applying angle modifier
+ *
+ * Based on RobotDrive version
+ */
 void SwerveDrive::RotateVector(double& x, double& y, double angle) {
   DBGST("IN  x %f y %f (%.1f) angle %.1f", x, y, degrees(std::atan2(y, x)), angle);
   double r = radians(angle);

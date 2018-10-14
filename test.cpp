@@ -740,81 +740,75 @@ class ErrorBase {
 ErrorBase::ErrorBase() { DBG; }
 
 // -----------------------------------------------------------------
-#if 0
-class CommandGroup;
-class Subsystem;
+//class CommandGroup;
 class Command : public ErrorBase, public SendableBase {
-  friend class CommandGroup;
-  friend class Scheduler;
+  //friend class CommandGroup;
+  //friend class Scheduler;
  public:
   Command();
-  explicit Command(const wpi::Twine& name);
-  explicit Command(double timeout);
-  Command(const wpi::Twine& name, double timeout);
+  //explicit Command(const wpi::Twine& name);
+  //explicit Command(double timeout);
+  //Command(const wpi::Twine& name, double timeout);
   ~Command() override = default;
-  double TimeSinceInitialized() const;
-  void Requires(Subsystem* s);
-  void Start();
-  bool Run();
-  void Cancel();
-  bool IsRunning() const;
-  bool IsInitialized() const;
-  bool IsCompleted() const;
-  bool IsCanceled() const;
-  bool IsInterruptible() const;
-  void SetInterruptible(bool interruptible);
-  bool DoesRequire(Subsystem* subsystem) const;
-  typedef std::set<Subsystem*> SubsystemSet;
-  const SubsystemSet& GetRequirements() const;
-  CommandGroup* GetGroup() const;
-  void SetRunWhenDisabled(bool run);
-  bool WillRunWhenDisabled() const;
-  int GetID() const;
+  //double TimeSinceInitialized() const;
+  //void Requires(Subsystem* s);
+  //void Start();
+  //bool Run();
+  //void Cancel();
+  //bool IsRunning() const;
+  //bool IsInitialized() const;
+  //bool IsCompleted() const;
+  //bool IsCanceled() const;
+  //bool IsInterruptible() const;
+  //void SetInterruptible(bool interruptible);
+  //bool DoesRequire(Subsystem* subsystem) const;
+  //typedef std::set<Subsystem*> SubsystemSet;
+  //const SubsystemSet& GetRequirements() const;
+  //CommandGroup* GetGroup() const;
+  //void SetRunWhenDisabled(bool run);
+  //bool WillRunWhenDisabled() const;
+  //int GetID() const;
  protected:
-  void SetTimeout(double timeout);
-  bool IsTimedOut() const;
-  bool AssertUnlocked(const std::string& message);
-  void SetParent(CommandGroup* parent);
-  bool IsParented() const;
-  void ClearRequirements();
-  virtual void Initialize();
-  virtual void Execute();
-  virtual bool IsFinished() = 0;
-  virtual void End();
-  virtual void Interrupted();
-  virtual void _Initialize();
-  virtual void _Interrupted();
-  virtual void _Execute();
-  virtual void _End();
-  virtual void _Cancel();
-  friend class ConditionalCommand;
+  //void SetTimeout(double timeout);
+  //bool IsTimedOut() const;
+  //bool AssertUnlocked(const std::string& message);
+  //void SetParent(CommandGroup* parent);
+  //bool IsParented() const;
+  //void ClearRequirements();
+  //virtual void Initialize();
+  //virtual void Execute();
+  //virtual bool IsFinished() = 0;
+  //virtual void End();
+  //virtual void Interrupted();
+  //virtual void _Initialize();
+  //virtual void _Interrupted();
+  //virtual void _Execute();
+  //virtual void _End();
+  //virtual void _Cancel();
+  //friend class ConditionalCommand;
  private:
-  void LockChanges();
-  void Removed();
-  void StartRunning();
-  void StartTiming();
-  double m_startTime = -1;
-  double m_timeout;
-  bool m_initialized = false;
-  SubsystemSet m_requirements;
-  bool m_running = false;
-  bool m_interruptible = true;
-  bool m_canceled = false;
-  bool m_locked = false;
-  bool m_runWhenDisabled = false;
-  CommandGroup* m_parent = nullptr;
-  bool m_completed = false;
-  int m_commandID = m_commandCounter++;
-  static int m_commandCounter;
+  //void LockChanges();
+  //void Removed();
+  //void StartRunning();
+  //void StartTiming();
+  //double m_startTime = -1;
+  //double m_timeout;
+  //bool m_initialized = false;
+  //SubsystemSet m_requirements;
+  //bool m_running = false;
+  //bool m_interruptible = true;
+  //bool m_canceled = false;
+  //bool m_locked = false;
+  //bool m_runWhenDisabled = false;
+  //CommandGroup* m_parent = nullptr;
+  //bool m_completed = false;
+  //int m_commandID = m_commandCounter++;
+  //static int m_commandCounter;
  public:
-  void InitSendable(SendableBuilder& builder) override;
+  //void InitSendable(SendableBuilder& builder) override;
 };
-#endif
+
 // -----------------------------------------------------------------
-class Command {
- public:
-  std::string& GetName();
-};
 
 class Subsystem : public ErrorBase, public SendableBase {
   friend class Scheduler;
@@ -822,10 +816,10 @@ class Subsystem : public ErrorBase, public SendableBase {
   explicit Subsystem(const wpi::Twine& name);
   void SetDefaultCommand(Command* command);
   Command* GetDefaultCommand();
-  std::string& GetDefaultCommandName();
+  std::string GetDefaultCommandName();
   void SetCurrentCommand(Command* command);
   Command* GetCurrentCommand() const;
-  std::string& GetCurrentCommandName() const;
+  std::string GetCurrentCommandName() const;
   virtual void Periodic();
   virtual void InitDefaultCommand();
   void AddChild(const std::string& name, std::shared_ptr<Sendable> child);
@@ -869,7 +863,7 @@ Command* Subsystem::GetDefaultCommand() {
   }
   return m_defaultCommand;
 }
-std::string& Subsystem::GetDefaultCommandName() {
+std::string Subsystem::GetDefaultCommandName() {
   Command* defaultCommand = GetDefaultCommand();
   if (defaultCommand) {
     return defaultCommand->GetName();
@@ -883,7 +877,7 @@ void Subsystem::SetCurrentCommand(Command* command) {
   m_currentCommandChanged = true;
 }
 Command* Subsystem::GetCurrentCommand() const { return m_currentCommand; }
-std::string& Subsystem::GetCurrentCommandName() const {
+std::string Subsystem::GetCurrentCommandName() const {
   Command* currentCommand = GetCurrentCommand();
   if (currentCommand) {
     return currentCommand->GetName();
