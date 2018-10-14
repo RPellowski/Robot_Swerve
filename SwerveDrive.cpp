@@ -42,12 +42,13 @@ constexpr double kPi = 3.14159265358979323846;
 
 /* ======================================================================== */
 
-/**
+/*
+ * Wheel
  * Conceptual representative of a Swerve wheel fixture.
- *   Has no knowledge of underlying hardware
- *   Provides for a logical wheel assembly of two motors (drive, steer)
- *   Preserves history
- *   Enables calculations to adjust settings based on inputs and history
+ *   - Has no knowledge of underlying hardware
+ *   - Provides for a logical wheel assembly of two motors (drive, steer)
+ *   - Remembers previous values
+ *   - Enables calculations to adjust settings based on inputs and history
  */
 class Wheel {
  public:
@@ -76,6 +77,7 @@ class Wheel {
 
 /*
  * Constructor for the wheel assembly
+ * Inputs
  *   north - distance of wheel from the center of gravity; forward is positive
  *   east - distance of wheel from the center of gravity; right is positive
  *   period - the time in seconds between calls for motor activity;
@@ -95,8 +97,10 @@ Wheel::Wheel(double north, double east, double period)
 Wheel::~Wheel() { DBG; };
 
 /*
- * Helper function - does not modify Wheel
- *   Given any angle, return equivalent angle in the range of (-180,180]
+ * AngleModulus
+ *   Helper function - does not modify Wheel
+ *
+ * Given any angle, return equivalent angle in the range of (-180,180]
  */
 double Wheel::AngleModulus(double a) {
   double ret = a;
@@ -106,12 +110,13 @@ double Wheel::AngleModulus(double a) {
 }
 
 /*
- * Helper function - does not modify Wheel
+ * AngularDistance
+ *   Helper function - does not modify Wheel
  *
- *  Given two angles and speeds, retun delta angle to be applied to move the
- *    wheel from the previous angle setting to the next
- *  Only the speed signs are used (not magnitude) to enable comparison of
- *    angles having the same sign
+ * Given two angles and speeds, return delta angle to be applied to move the
+ *   wheel from the previous angle setting to the next
+ * Only the speed signs are used (not magnitude) to enable comparison of
+ *   angles having the same sign
  */
 double Wheel::AngularDistance(double speed_prev, double prev,
                               double speed_next, double next) {
@@ -123,7 +128,8 @@ double Wheel::AngularDistance(double speed_prev, double prev,
 }
 
 /*
- * Modify Wheel - m_speed and m_angle
+ * NormalizeRotation
+ *   Modify Wheel - m_speed and m_angle
  *
  * Adjust new angle so it differs from the previous angle by less than 90 degrees
  *   First, given previous and next, calculate the delta angle to be applied
@@ -149,12 +155,12 @@ void Wheel::NormalizeRotation() {
 };
 
 /*
+ * ApplyTranslationAndRotation
+ *   Modify Wheel - m_speed_prev, m_angle_prev, m_speed, m_angle
+ *
  * Swerve drive operation
+ *   Apply new object values from three axes of input
  *
- * Modify Wheel - m_speed_prev, m_angle_prev, m_speed, m_angle
- *
- * Apply new object values from three axes of input
-
  * Inputs
  *   north - forward velocity setting
  *   east - right velocity setting
@@ -203,10 +209,11 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
 };
 
 /*
- * Helper function - does not modify Wheel
+ * CalculateAckermanCG
+ *   Helper function - does not modify Wheel
  *
  * Given an input vector and the distance between rear axle and robot
- * Center of Gravity, return a distance and rotation rate
+ *   Center of Gravity, return a distance and rotation rate
  *
  * Inputs
  *   north - forward velocity setting
@@ -263,9 +270,10 @@ void Wheel::CalculateAckermanCG(double north, double east, double cgNorth,
 }
 
 /*
- * Ackermann drive operation
+ * ApplyAckermann
+ *   Modify Wheel - m_speed_prev, m_angle_prev, m_speed, m_angle
  *
- * Modify Wheel - m_speed_prev, m_angle_prev, m_speed, m_angle
+ * Ackermann drive operation
  *
  * Inputs
  *   north - velocity in the forward direction
@@ -312,9 +320,10 @@ void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
 };
 
 /*
- * Given a normaliation value, apply it to the current m_speed and save
+ * NormalizeSpeed
+ *   Modify Wheel - m_speed
  *
- * modify Wheel - m_speed
+ * Given a normaliation value, apply it to the current m_speed and save
  *
  * Input
  *   norm - normalization value
@@ -451,10 +460,12 @@ SwerveDrive::~SwerveDrive() {
 }
 
 /*
- * Swerve drive operation
+ * DriveCartesian
+ *   Set steer and drive motors
  *
- * Given set of inputs, calculate the appropriate motor settings and apply
- *  them to the individual motors
+ * Swerve drive operation
+ *   Given set of inputs, calculate the appropriate motor settings and apply
+ *     them to the individual motors
  *
  * Inputs
  *   north - forward velocity setting
@@ -505,9 +516,10 @@ void SwerveDrive::DriveCartesian(double north,
 }
 
 /*
- * Wheel speed scaling
+ * NormalizeSpeeds
  *
- * Ensure all speeds are within the maximum allowed range (-1..1)
+ * Wheel speed scaling
+ *   Ensure all speeds are within the maximum allowed range (-1..1)
  *
  * Intermediates
  *   norm - maximum magnitude of all m_wheel[] speeds
@@ -533,7 +545,8 @@ void SwerveDrive::NormalizeSpeeds() {
 }
 
 /*
- * Set all drive and steer motors amplitudes to zero
+ * StopMotor
+ *   Set all drive and steer motor amplitudes to zero
  */
 void SwerveDrive::StopMotor() {
   DBG;
@@ -581,13 +594,15 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
 }
 
 /*
- * Helper function - does not modify SwerveDrive object
+ * RotateVector
+ *   Helper function - does not modify SwerveDrive object
  *
- * Apply angle of rotation to (x, y) pair and return that modified pair
+ * Apply angle of rotation to (x, y) pair and return the pair, modified
  *
  * Inputs
  *   x and y - values to be modified
  *   angle - modifier
+ *
  * Outputs
  *   x and y - values after applying angle modifier
  *
