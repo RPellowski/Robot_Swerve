@@ -16,7 +16,7 @@
  *     inside vs outside class
  *
  * References:
- *   Java version
+ *   Java version: http://team484.org/programming/notes/swerve-drive/
  *
  *----------------------------------------------------------------------------*/
 
@@ -40,7 +40,9 @@ constexpr double kPi = 3.14159265358979323846;
 #define radians(d) (d / 180.0 * kPi)
 #define degrees(r) (r * 180.0 / kPi)
 
-/* ======================================================================== */
+/* ======================================================================== *
+                                  Wheel
+ * ======================================================================== */
 
 /*
  * Wheel
@@ -49,6 +51,7 @@ constexpr double kPi = 3.14159265358979323846;
  *   - Provides for a logical wheel assembly of two motors (drive, steer)
  *   - Remembers previous values
  *   - Enables calculations to adjust settings based on inputs and history
+ *   - Supports two modes: Swerve, Ackermann
  */
 class Wheel {
  public:
@@ -62,9 +65,10 @@ class Wheel {
   static void CalculateAckermanCG(double north, double east, double cgNorth,
                                   double& corDistance, double& omega);
   void ApplyAckermann(double north, double corDistance, double omega);
-  double NormalizeSpeed(double norm);
   double Speed();
+  double Speed(double speed);
   double Angle();
+  double Angle(double angle);
  private:
   double m_north;
   double m_east;
@@ -319,40 +323,36 @@ void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   DBGf2(m_speed, m_angle);
 };
 
-/*
- * NormalizeSpeed
- *   Modify Wheel - m_speed
- *
- * Given a normaliation value, apply it to the current m_speed and save
- *
- * Input
- *   norm - normalization value
- * Output
- *   m_speed - value after normalization
- */
-double Wheel::NormalizeSpeed(double norm) {
-  if (norm > 0.) { m_speed /= norm; }
-  DBGf2(norm, m_speed);
-  return m_speed;
-};
-
-/*
- * Getter for speed
- */
+/* Getter for speed */
 double Wheel::Speed() {
   DBGf(m_speed);
   return m_speed;
 };
 
-/*
- * Getter for angle
- */
+/* Setter for speed */
+double Wheel::Speed(double speed) {
+  DBGf2(m_speed, speed);
+  m_speed = speed;
+  return m_speed;
+};
+
+/* Getter for angle */
 double Wheel::Angle() {
   DBGf(m_angle);
   return m_angle;
 };
 
-/* ======================================================================== */
+/* Setter for angle */
+double Wheel::Angle(double angle) {
+  DBGf2(m_angle, angle);
+  m_angle = angle;
+  return m_angle;
+};
+
+/* ======================================================================== *
+                             Swerve Drive
+ * ======================================================================== */
+
 #if 0
 double SwerveDrive::getEncoderAngle(std::string foo) {
   DBGz(foo.c_str());
@@ -539,7 +539,7 @@ void SwerveDrive::NormalizeSpeeds() {
   }
   if (norm > 1.0) {
     for (size_t i = 0; i < kWheels; i++) {
-      m_wheel[i]->NormalizeSpeed(norm);
+      m_wheel[i]->Speed(m_wheel[i]->Speed() / norm);
     }
   }
 }
@@ -601,7 +601,7 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
  *
  * Inputs
  *   x and y - values to be modified
- *   angle - modifier
+ *   angle - modifier in degrees
  *
  * Outputs
  *   x and y - values after applying angle modifier

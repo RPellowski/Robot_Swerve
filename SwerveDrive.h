@@ -17,29 +17,6 @@
  * clockwise rotation around the Z axis is positive.
  */
 
-/**
- * TBD
- * Add encoders for rotation
- * Add encoders for speed/distance (for kinematics)
- * Add default and settable PID values for rotation
- * Add compensation for rotation near discontinuity (0/360)
- * Add default and settable PID values for speed (maybe)
- * Add reverse kinematics for calculation of location
- * Add (non-linear) scaling on speed inputs
- * Add (non-linear) scaling on rotation inputs
- * Add scaling on speed outputs
- * Add scaling on rotation outputs
- * Enable motor safety? where?
- * Test mode
- *  Single wheel direction
- *  Single wheel speed
- *  All wheels same direction
- * Autonomous
- *  Drive around point with rotation
- *  Drive around point with no rotation
- *
- */
-
 class Wheel;
 constexpr int kWheels = 4;
 enum { FL = 0, RL, RR, FR };
@@ -63,7 +40,7 @@ class SwerveDrive : public RobotDriveBase {
 
   ~SwerveDrive() override;
 
-  // disable copy and assignment operators
+  // Disable copy and assignment operators
   SwerveDrive(const SwerveDrive&) = delete;
   SwerveDrive& operator=(const SwerveDrive&) = delete;
 
@@ -72,7 +49,7 @@ class SwerveDrive : public RobotDriveBase {
    *
    * @param north  The robot's velocity along the forward X axis [-1.0..1.0].
    * @param east   The robot's velocity along the right Y axis [-1.0..1.0].
-   * @param yaw    The robot's rotation rate around the Z axis in degrees/sec.
+   * @param yaw    The robot's rotation rate around the Z axis in units/sec.
    *               From above, positive is clockwise.
    * @param gyro   The current angle reading from the gyro in degrees around
    *               the Z axis. Use this to implement field-oriented controls.
@@ -85,11 +62,10 @@ class SwerveDrive : public RobotDriveBase {
 
   void NormalizeSpeeds();
   void StopMotor() override;
-  void GetDescription(wpi::raw_ostream& desc) const override;
 
+  void GetDescription(wpi::raw_ostream& desc) const override;
   void InitSendable(SendableBuilder& builder) override;
 
-  // Borrowed from RobotDrive
   static void RotateVector(double& x, double& y, double angle);
 
  private:

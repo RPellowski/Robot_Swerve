@@ -919,7 +919,7 @@ void Subsystem::InitSendable(SendableBuilder& builder) {
 
 // -----------------------------------------------------------------
 
-#define xFOOBAR
+#define FOOBAR
 #ifdef FOOBAR
 } // namespace frc
 // -----------------------------------------------------------------
@@ -1096,7 +1096,8 @@ void test_wheel() {
 #if 1
   double norm = 1.0;
   for (size_t i = 0; i < kWheels; i++) { double temp = std::abs(wheel[i]->Speed()); if (norm < temp) { norm = temp; } }
-  if (norm > 1.0) { for (size_t i = 0; i < kWheels; i++) { wheel[i]->NormalizeSpeed(norm); } }
+  //if (norm > 1.0) { for (size_t i = 0; i < kWheels; i++) { wheel[i]->NormalizeSpeed(norm); } }
+  if (norm > 1.0) { for (size_t i = 0; i < kWheels; i++) { wheel[i]->Speed(wheel[i]->Speed()/norm); } }
 #endif
   for (int i = 0; i < kWheels; i++) {
     delete wheel[i];
@@ -1105,7 +1106,7 @@ void test_wheel() {
 
 int main()
 {
-#if 1
+#if 0
   test_wheel();
 #else
   WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
