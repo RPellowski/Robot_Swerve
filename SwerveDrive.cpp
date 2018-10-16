@@ -15,10 +15,50 @@
  *   Where is the best location to manage motors?
  *     inside vs outside class
  *
+ *   Base on which object(s)?
+ *     RobotDriveBase like MecanumDrive
+ *       DriveCartesian
+ *       StopMotor
+ *       GetDescription
+ *       InitSendable
+ *       calls AddChild, SetName, Set, Feed
+ *     Subsystem like DriveTrain
+ *       CreateTalons (WPI_TalonSRX)
+ *       InitDefaultCommand
+ *       Go/Stop
+ *       calls Set, SetPosition, SetExpiration, SetSafetyEnabled(false)
+ *
+ *   Where to create and maintain gyro?
+ *     Command?
+ *
  * References:
  *   Java version: http://team484.org/programming/notes/swerve-drive/
  *
  *----------------------------------------------------------------------------*/
+
+/**
+ * TBD
+ * Add encoders for rotation (steering)
+ * Add encoders for speed/distance (for kinematics)
+ * Add default and settable PID values for rotation
+ * Add compensation for rotation near discontinuity (0/360)
+ * Add default and settable PID values for speed (maybe)
+ * Add reverse kinematics for calculation of location
+ * Add (non-linear) scaling on speed inputs
+ * Add (non-linear) scaling on rotation inputs
+ * Add scaling on speed outputs
+ * Add scaling on rotation outputs
+ * Enable motor safety? where?
+ * Test mode
+ *  Single wheel direction
+ *  Single wheel speed
+ *  All wheels same direction
+ * Autonomous
+ *  Drive distance and/or rotation
+ *  Drive around point with rotation
+ *  Drive around point with no rotation
+ *
+ */
 
 #include <cmath>
 
@@ -61,10 +101,12 @@ class Wheel {
   static double AngularDistance(double speed_prev, double prev,
                                 double speed_next, double next);
   void NormalizeRotation();
+
   void ApplyTranslationAndRotation(double north, double east, double omega = 0);
   static void CalculateAckermanCG(double north, double east, double cgNorth,
                                   double& corDistance, double& omega);
   void ApplyAckermann(double north, double corDistance, double omega);
+
   double Speed();
   double Speed(double speed);
   double Angle();
@@ -141,7 +183,7 @@ double Wheel::AngularDistance(double speed_prev, double prev,
  *   Last, set new speed sign (which may be negative for reverse direction)
  */
 void Wheel::NormalizeRotation() {
-  double distance;
+  double delta;
 
   // If only one sign is negative, perform adjustment so we can compare
   if (m_speed_prev * m_speed < 0.) {
@@ -151,8 +193,8 @@ void Wheel::NormalizeRotation() {
 
   // Always keep new angle within 90 degrees of previous angle
   // For larger deltas, the motor is reversed and a closer angle is selected
-  distance = AngularDistance(m_speed_prev, m_angle_prev, m_speed, m_angle);
-  if (std::abs(distance) > 90) {
+  delta = AngularDistance(m_speed_prev, m_angle_prev, m_speed, m_angle);
+  if (std::abs(delta) > 90) {
     m_speed = 0. - m_speed;
     m_angle = AngleModulus(m_angle + 180.);
   }
@@ -171,6 +213,7 @@ void Wheel::NormalizeRotation() {
  *   omega - clockwise rotation rate setting (yaw)
  *
  * Note: Calculation of the wheel velocity and angle is determined by
+ *   - the forward and right translation velocities
  *   - the rotation rate omega
  *   - the periodic sampling rate m_period
  *
@@ -229,6 +272,7 @@ void Wheel::ApplyTranslationAndRotation(double north, double east, double omega)
  *     range is minAngle to maxAngle (in any of the 4 quadrants)
  *   cgDistance - distance between robot CoG and CoR
  *     range is a finite value (positive for right, negative for left)
+ *   magnitude - rotation vector length at the Center of Gravity
  *
  * Notes
  *   Minimum steerAngle must be non-zero to calculate a finite cgDistance
@@ -256,17 +300,14 @@ void Wheel::CalculateAckermanCG(double north, double east, double cgNorth,
   if (steerAngle >  maxAngle) { steerAngle =  maxAngle; }
   if (std::abs(steerAngle) < minAngle) { steerAngle = minAngle; }
 
-  // Calculate distance between center of rear axle and Center of Rotation
-  // (corDistance)
+  // Calculate corDistance between Center of Rear Axle and Center of Rotation
   cgDistance = cgNorth / std::sin(radians(steerAngle));
   corDistance = std::sqrt(cgDistance * cgDistance - cgNorth * cgNorth);
   if (steerAngle < 0) { corDistance = -corDistance; }
-  //corDistance = std::copysign(corDistance, steerAngle);
 
   // Calculate angular velocity around center of rotation (omega)
   magnitude = std::sqrt(east * east + north * north);
   if (north < 0) { magnitude = -magnitude; }
-  //magnitude = std::copysign(magnitude, north);
   omega = magnitude / cgDistance;
 
   DBGf3(north, east, cgNorth);
@@ -309,16 +350,14 @@ void Wheel::ApplyAckermann(double north, double corDistance, double omega) {
   m_speed_prev = m_speed;
   m_angle_prev = m_angle;
 
-  // Now speed and angle
+  // Now calculate speed and angle
   m_speed = wheelDistance * std::abs(omega);
   // Could be backing up
   if (north < 0) { m_speed = -m_speed; }
-  //m_speed = std::copysign(m_speed, north);
 
   m_angle = degrees(std::asin(dY / wheelDistance));
   // Negative Center of Rotation is left hand turn
   if (corDistance < 0) { m_angle = -m_angle; }
-  //m_angle = std::copysign(m_angle, corDistance);
 
   DBGf2(m_speed, m_angle);
 };
@@ -530,16 +569,17 @@ void SwerveDrive::DriveCartesian(double north,
  */
 void SwerveDrive::NormalizeSpeeds() {
   double norm = 1.0;
+  double temp[kWheels];
   DBG;
   for (size_t i = 0; i < kWheels; i++) {
-    double temp = std::abs(m_wheel[i]->Speed());
-    if (norm < temp) {
-      norm = temp;
+    temp[i] = std::abs(m_wheel[i]->Speed());
+    if (norm < temp[i]) {
+      norm = temp[i];
     }
   }
   if (norm > 1.0) {
     for (size_t i = 0; i < kWheels; i++) {
-      m_wheel[i]->Speed(m_wheel[i]->Speed() / norm);
+      m_wheel[i]->Speed(temp[i] / norm);
     }
   }
 }
