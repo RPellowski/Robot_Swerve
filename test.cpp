@@ -30,6 +30,7 @@
       __LINE__, basename((char *)__FILE__), _f.c_str(), ##__VA_ARGS__); \
   } while (0)
 #define f1f " %.6f "
+#define DBGv(a)        DBGST(#a " %d"                    , (a))
 #define DBGf(a)        DBGST(#a f1f                      , (a))
 #define DBGf2(a,b)     DBGST(#a f1f #b f1f               , (a), (b))
 #define DBGf3(a,b,c)   DBGST(#a f1f #b f1f #c f1f        , (a), (b), (c))
@@ -760,7 +761,6 @@ class DigitalSource;
 class Encoder : public ErrorBase, public SendableBase, public CounterBase, public PIDSource {
  public:
   enum IndexingType { kResetWhileHigh, kResetWhileLow, kResetOnFallingEdge, kResetOnRisingEdge };
-#if 1
   Encoder(int aChannel, int bChannel, bool reverseDirection = false, EncodingType encodingType = k4X);
   //Encoder(DigitalSource* aSource, DigitalSource* bSource, bool reverseDirection = false, EncodingType encodingType = k4X);
   //Encoder(DigitalSource& aSource, DigitalSource& bSource, bool reverseDirection = false, EncodingType encodingType = k4X);
@@ -796,7 +796,6 @@ class Encoder : public ErrorBase, public SendableBase, public CounterBase, publi
   int m_encodingScale;
   double m_distancePerPulse;
   bool m_reverseDirection;
-#endif
 };
 Encoder::Encoder(int aChannel, int bChannel, bool reverseDirection, EncodingType encodingType) {
   m_encodingType = encodingType;
@@ -814,61 +813,132 @@ Encoder::Encoder(int aChannel, int bChannel, bool reverseDirection, EncodingType
       break;
     }
     default:
-      return;
+      break;
   }
+  DBGST("aChannel %d bChannel %d reverseDirection %d encodingScale %d", aChannel, bChannel, reverseDirection, m_encodingScale);
 }
 
-Encoder::~Encoder() {
-}
+Encoder::~Encoder() { DBG; }
 
 int32_t Encoder::Get() const {
-  return static_cast<int32_t>(GetRaw() * DecodingScaleFactor());
+  int32_t v =  static_cast<int32_t>(GetRaw() * DecodingScaleFactor());
+  DBGv(v);
+  return v;
 }
 
-int32_t Encoder::GetRaw() const { return 0.; }
-int32_t Encoder::GetEncodingScale() const { return m_encodingScale; }
-void Encoder::Reset() { }
-double Encoder::GetPeriod() const { return 0.; }
-void Encoder::SetMaxPeriod(double maxPeriod) { }
-bool Encoder::GetStopped() const { return true; }
-bool Encoder::GetDirection() const { return true; }
-double Encoder::GetDistance() const { return GetRaw() * DecodingScaleFactor() * m_distancePerPulse; }
-double Encoder::GetRate() const { return m_distancePerPulse / GetPeriod(); }
-void Encoder::SetMinRate(double minRate) { SetMaxPeriod(m_distancePerPulse / minRate); }
-void Encoder::SetDistancePerPulse(double distancePerPulse) { m_distancePerPulse = distancePerPulse; }
-void Encoder::SetReverseDirection(bool reverseDirection) { }
+int32_t Encoder::GetRaw() const { int32_t raw = 0.; DBGv(raw); return raw; }
+int32_t Encoder::GetEncodingScale() const { DBGv(m_encodingScale); return m_encodingScale; }
+void Encoder::Reset() { DBG; }
+double Encoder::GetPeriod() const { double p = 0; DBGf(p); return p; }
+void Encoder::SetMaxPeriod(double maxPeriod) { DBGf(maxPeriod); }
+bool Encoder::GetStopped() const { DBG; return true; }
+bool Encoder::GetDirection() const { DBGv(m_reverseDirection); return m_reverseDirection; }
+double Encoder::GetDistance() const { DBG; return GetRaw() * DecodingScaleFactor() * m_distancePerPulse; }
+double Encoder::GetRate() const { double r = m_distancePerPulse / GetPeriod(); DBGf(r); return r;}
+void Encoder::SetMinRate(double minRate) { DBGf(minRate); SetMaxPeriod(m_distancePerPulse / minRate); }
+void Encoder::SetDistancePerPulse(double distancePerPulse) { DBGf(distancePerPulse); m_distancePerPulse = distancePerPulse; }
+void Encoder::SetReverseDirection(bool reverseDirection) { DBGv(reverseDirection); }
 void Encoder::SetSamplesToAverage(int32_t samplesToAverage) {
+  DBGv(samplesToAverage);
   if (samplesToAverage < 1 || samplesToAverage > 127) { return; }
   m_samplesToAverage = samplesToAverage;
 }
-int32_t Encoder::GetSamplesToAverage() const { return m_samplesToAverage; }
+int32_t Encoder::GetSamplesToAverage() const { DBGv(m_samplesToAverage); return m_samplesToAverage; }
 double Encoder::DecodingScaleFactor() const {
-  switch (m_encodingType) {
-    case k1X:
-      return 1.0;
-    case k2X:
-      return 0.5;
-    case k4X:
-      return 0.25;
-    default:
-      return 0.0;
+   double rc;
+   switch (m_encodingType) {
+    case k1X: rc = 1.0; break;
+    case k2X: rc = 0.5; break;
+    case k4X: rc = 0.25; break;
+    default: rc = 0.0; break;
   }
+  DBGf(rc);
+  return rc;
 }
 double Encoder::PIDGet() {
-  switch (GetPIDSourceType()) {
-    case PIDSourceType::kDisplacement:
-      return GetDistance();
-    case PIDSourceType::kRate:
-      return GetRate();
-    default:
-      return 0.0;
+   double rc;
+   switch (GetPIDSourceType()) {
+    case PIDSourceType::kDisplacement: rc = GetDistance(); break;
+    case PIDSourceType::kRate: rc = GetRate(); break;
+    default: rc = 0.0; break;
   }
+  return rc;
 }
-void Encoder::InitSendable(SendableBuilder& builder) { }
+void Encoder::InitSendable(SendableBuilder& builder) { DBG; }
 void Encoder::InitEncoder(bool reverseDirection, EncodingType encodingType) {
   m_encodingType = encodingType;
   m_reverseDirection = reverseDirection;
+  DBGST("encodingType %d reverseDirection %d", encodingType, reverseDirection);
 }
+#define FOOBAR
+#ifdef FOOBAR
+} // namespace frc
+// -----------------------------------------------------------------
+using namespace frc;
+class PS :  public PIDSource {
+ public:
+  virtual ~PS();
+  virtual double PIDGet();
+};
+double PS::PIDGet() {DBG; return 1.0;}
+PS::~PS() { DBG; };
+
+class PO : public PIDOutput {
+  public:
+   virtual ~PO();
+   virtual void PIDWrite(double d);
+};
+void PO::PIDWrite(double d) { DBGf(d); }
+PO::~PO() { DBG; };
+
+int main()
+{
+#if 1
+  DBG;
+  Encoder e(1,2);
+  e.SetMinRate(3.);
+  e.SetDistancePerPulse(5);
+  e.SetReverseDirection(true);
+  e.SetSamplesToAverage(127);
+  e.SetMaxPeriod(0.5);
+  e.GetRaw();
+  e.GetEncodingScale();
+  e.Reset();
+  e.GetPeriod();
+  e.GetStopped();
+  e.GetDirection();
+  e.GetDistance();
+  e.GetRate();
+  e.GetSamplesToAverage();
+  //e.DecodingScaleFactor();
+  e.PIDGet();
+
+#else
+DBGz("===================");
+  PS *ps = new PS();
+  ps->SetPIDSourceType(PIDSourceType::kRate);
+DBGz("===================");
+  PO *po = new PO();
+DBGz("===================");
+  PIDBase *pb = new PIDBase(1.,0.,0.,*ps,*po);
+  pb->SetPID(3.,2.,1.);
+  pb->SetPID(3.,2.,1.,10.);
+  double p = pb->GetP(); DBGf(p);
+  double i = pb->GetI(); DBGf(i);
+  double d = pb->GetD(); DBGf(d);
+  double f = pb->GetF(); DBGf(f);
+  pb->SetSetpoint(7.);
+  double s = pb->GetSetpoint(); DBGf(s);
+DBGz("===================");
+  pb->m_enabled = true;
+  pb->Calculate();
+DBGz("===================");
+  delete pb;
+  delete po;
+  delete ps;
+#endif
+}
+#else //FOOBAR
 
 // -----------------------------------------------------------------
 //class CommandGroup;
@@ -1050,53 +1120,6 @@ void Subsystem::InitSendable(SendableBuilder& builder) {
 
 // -----------------------------------------------------------------
 
-#define xFOOBAR
-#ifdef FOOBAR
-} // namespace frc
-// -----------------------------------------------------------------
-using namespace frc;
-class PS :  public PIDSource {
- public:
-  virtual ~PS();
-  virtual double PIDGet();
-};
-double PS::PIDGet() {DBG; return 1.0;}
-PS::~PS() { DBG; };
-
-class PO : public PIDOutput {
-  public:
-   virtual ~PO();
-   virtual void PIDWrite(double d);
-};
-void PO::PIDWrite(double d) { DBGf(d); }
-PO::~PO() { DBG; };
-
-int main()
-{
-DBGz("===================");
-  PS *ps = new PS();
-  ps->SetPIDSourceType(PIDSourceType::kRate);
-DBGz("===================");
-  PO *po = new PO();
-DBGz("===================");
-  PIDBase *pb = new PIDBase(1.,0.,0.,*ps,*po);
-  pb->SetPID(3.,2.,1.);
-  pb->SetPID(3.,2.,1.,10.);
-  double p = pb->GetP(); DBGf(p);
-  double i = pb->GetI(); DBGf(i);
-  double d = pb->GetD(); DBGf(d);
-  double f = pb->GetF(); DBGf(f);
-  pb->SetSetpoint(7.);
-  double s = pb->GetSetpoint(); DBGf(s);
-DBGz("===================");
-  pb->m_enabled = true;
-  pb->Calculate();
-DBGz("===================");
-  delete pb;
-  delete po;
-  delete ps;
-}
-#else //FOOBAR
 // -----------------------------------------------------------------
 class RobotDriveBase : public MotorSafety, public SendableBase {
  public:
