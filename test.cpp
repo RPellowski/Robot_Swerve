@@ -740,6 +740,137 @@ class ErrorBase {
 ErrorBase::ErrorBase() { DBG; }
 
 // -----------------------------------------------------------------
+class CounterBase {
+ public:
+  enum EncodingType { k1X, k2X, k4X };
+
+  virtual ~CounterBase() = default;
+  virtual int Get() const = 0;
+  virtual void Reset() = 0;
+  virtual double GetPeriod() const = 0;
+  virtual void SetMaxPeriod(double maxPeriod) = 0;
+  virtual bool GetStopped() const = 0;
+  virtual bool GetDirection() const = 0;
+};
+
+// -----------------------------------------------------------------
+class DigitalSource;
+
+// -----------------------------------------------------------------
+class Encoder : public ErrorBase, public SendableBase, public CounterBase, public PIDSource {
+ public:
+  enum IndexingType { kResetWhileHigh, kResetWhileLow, kResetOnFallingEdge, kResetOnRisingEdge };
+#if 1
+  Encoder(int aChannel, int bChannel, bool reverseDirection = false, EncodingType encodingType = k4X);
+  //Encoder(DigitalSource* aSource, DigitalSource* bSource, bool reverseDirection = false, EncodingType encodingType = k4X);
+  //Encoder(DigitalSource& aSource, DigitalSource& bSource, bool reverseDirection = false, EncodingType encodingType = k4X);
+  //Encoder(std::shared_ptr<DigitalSource> aSource, std::shared_ptr<DigitalSource> bSource, bool reverseDirection = false,
+  //        EncodingType encodingType = k4X);
+  ~Encoder() override;
+  int Get() const override;
+  void Reset() override;
+  double GetPeriod() const override;
+  void SetMaxPeriod(double maxPeriod) override;
+  bool GetStopped() const override;
+  bool GetDirection() const override;
+  int GetRaw() const;
+  int GetEncodingScale() const;
+  double GetDistance() const;
+  double GetRate() const;
+  void SetMinRate(double minRate);
+  void SetDistancePerPulse(double distancePerPulse);
+  double GetDistancePerPulse() const;
+  void SetReverseDirection(bool reverseDirection);
+  void SetSamplesToAverage(int samplesToAverage);
+  int GetSamplesToAverage() const;
+  double PIDGet() override;
+  //void SetIndexSource(int channel, IndexingType type = kResetOnRisingEdge);
+  //void SetIndexSource(const DigitalSource& source, IndexingType type = kResetOnRisingEdge);
+  //int GetFPGAIndex() const;
+  void InitSendable(SendableBuilder& builder) override;
+ private:
+  void InitEncoder(bool reverseDirection, EncodingType encodingType);
+  double DecodingScaleFactor() const;
+  int m_samplesToAverage;
+  EncodingType m_encodingType;
+  int m_encodingScale;
+  double m_distancePerPulse;
+  bool m_reverseDirection;
+#endif
+};
+Encoder::Encoder(int aChannel, int bChannel, bool reverseDirection, EncodingType encodingType) {
+  m_encodingType = encodingType;
+  switch (encodingType) {
+    case k4X: {
+      m_encodingScale = 4;
+      SetMaxPeriod(.5);
+      break;
+    }
+    case k1X:
+      m_encodingScale = 1;
+      break;
+    case k2X: {
+      m_encodingScale = 2;
+      break;
+    }
+    default:
+      return;
+  }
+}
+
+Encoder::~Encoder() {
+}
+
+int32_t Encoder::Get() const {
+  return static_cast<int32_t>(GetRaw() * DecodingScaleFactor());
+}
+
+int32_t Encoder::GetRaw() const { return 0.; }
+int32_t Encoder::GetEncodingScale() const { return m_encodingScale; }
+void Encoder::Reset() { }
+double Encoder::GetPeriod() const { return 0.; }
+void Encoder::SetMaxPeriod(double maxPeriod) { }
+bool Encoder::GetStopped() const { return true; }
+bool Encoder::GetDirection() const { return true; }
+double Encoder::GetDistance() const { return GetRaw() * DecodingScaleFactor() * m_distancePerPulse; }
+double Encoder::GetRate() const { return m_distancePerPulse / GetPeriod(); }
+void Encoder::SetMinRate(double minRate) { SetMaxPeriod(m_distancePerPulse / minRate); }
+void Encoder::SetDistancePerPulse(double distancePerPulse) { m_distancePerPulse = distancePerPulse; }
+void Encoder::SetReverseDirection(bool reverseDirection) { }
+void Encoder::SetSamplesToAverage(int32_t samplesToAverage) {
+  if (samplesToAverage < 1 || samplesToAverage > 127) { return; }
+  m_samplesToAverage = samplesToAverage;
+}
+int32_t Encoder::GetSamplesToAverage() const { return m_samplesToAverage; }
+double Encoder::DecodingScaleFactor() const {
+  switch (m_encodingType) {
+    case k1X:
+      return 1.0;
+    case k2X:
+      return 0.5;
+    case k4X:
+      return 0.25;
+    default:
+      return 0.0;
+  }
+}
+double Encoder::PIDGet() {
+  switch (GetPIDSourceType()) {
+    case PIDSourceType::kDisplacement:
+      return GetDistance();
+    case PIDSourceType::kRate:
+      return GetRate();
+    default:
+      return 0.0;
+  }
+}
+void Encoder::InitSendable(SendableBuilder& builder) { }
+void Encoder::InitEncoder(bool reverseDirection, EncodingType encodingType) {
+  m_encodingType = encodingType;
+  m_reverseDirection = reverseDirection;
+}
+
+// -----------------------------------------------------------------
 //class CommandGroup;
 class Command : public ErrorBase, public SendableBase {
   //friend class CommandGroup;
@@ -919,7 +1050,7 @@ void Subsystem::InitSendable(SendableBuilder& builder) {
 
 // -----------------------------------------------------------------
 
-#define FOOBAR
+#define xFOOBAR
 #ifdef FOOBAR
 } // namespace frc
 // -----------------------------------------------------------------
@@ -1125,7 +1256,7 @@ int main()
   //s->DriveCartesian(1.,1.,0.,45.);
   //s->DriveCartesian(-1.,0.,0.,0.);
   s->DriveCartesian(1.,1.,1.,0.);
-#if 1
+#if 0
   s->StopMotor();
   delete s;
   delete m1;

@@ -19,7 +19,8 @@
 
 class Wheel;
 constexpr int kWheels = 4;
-enum { FL = 0, RL, RR, FR };
+// Use same ordering convention as MecanumDrive
+enum { FL = 0, RL, FR, RR };
 
 class SwerveDrive : public RobotDriveBase {
  public:
@@ -60,13 +61,10 @@ class SwerveDrive : public RobotDriveBase {
                       double yaw,
                       double gyro = 0.0);
 
-  void NormalizeSpeeds();
   void StopMotor() override;
 
   void GetDescription(wpi::raw_ostream& desc) const override;
   void InitSendable(SendableBuilder& builder) override;
-
-  static void RotateVector(double& x, double& y, double angle);
 
  private:
   SpeedController* m_drive[kWheels];
@@ -74,5 +72,8 @@ class SwerveDrive : public RobotDriveBase {
   double m_base_width;
   double m_base_length;
   Wheel *m_wheel[kWheels];
+
+  void NormalizeSpeeds();
+  static void RotateVector(double& x, double& y, double angle);
 };
 

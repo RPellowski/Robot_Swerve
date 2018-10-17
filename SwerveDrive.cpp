@@ -12,10 +12,16 @@
  *
  *   What motors do/do not need PID?
  *     where to use PID for velocity vs distance
+ *       PID for steer
+ *       no PID for velocity
+ *       possibly PID for autonomous distance
+ *
  *   Where is the best location to manage motors?
  *     inside vs outside class
+ *     inside the class
  *
  *   Base on which object(s)?
+ *   Have two object modules, Swerve is like Mecanum, but create Talons here
  *     RobotDriveBase like MecanumDrive
  *       DriveCartesian
  *       StopMotor
@@ -29,6 +35,7 @@
  *       calls Set, SetPosition, SetExpiration, SetSafetyEnabled(false)
  *
  *   Where to create and maintain gyro?
+ *     Probably the utility module
  *     Command?
  *
  * References:
@@ -461,12 +468,12 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
                          double base_length)
     : m_drive{&fl_drive_motor,
               &rl_drive_motor,
-              &rr_drive_motor,
-              &fr_drive_motor},
+              &fr_drive_motor,
+              &rr_drive_motor},
       m_steer{&fl_steer_motor,
               &rl_steer_motor,
-              &rr_steer_motor,
-              &fr_steer_motor},
+              &fr_steer_motor,
+              &rr_steer_motor},
       m_base_width(base_width),
       m_base_length(base_length) {
   DBG;
@@ -483,8 +490,8 @@ SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
   double p = 1.0 / std::sqrt(l * l + w * w);
   m_wheel[FL] = new Wheel( l,-w, p);
   m_wheel[RL] = new Wheel(-l,-w, p);
-  m_wheel[RR] = new Wheel(-l, w, p);
   m_wheel[FR] = new Wheel( l, w, p);
+  m_wheel[RR] = new Wheel(-l, w, p);
 
   static int instances = 0;
   ++instances;
