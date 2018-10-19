@@ -399,99 +399,132 @@ double Wheel::Angle(double angle) {
                              Swerve Drive
  * ======================================================================== */
 
-#if 0
-double SwerveDrive::getEncoderAngle(std::string foo) {
-  DBGz(foo.c_str());
-  return 0.;
-}
-void SwerveDrive::rotFL_set(double d) {
-  DBGf(d);
-}
-#endif
-SwerveDrive::SwerveDrive(int deviceNumbers[8],
-            double base_width,
-            double base_length) {
+// TBD: fill in the ID values from an include
+constexpr int FL_DRIVE_MOTOR_ID = 1;
+constexpr int RL_DRIVE_MOTOR_ID = 2;
+constexpr int FR_DRIVE_MOTOR_ID = 3;
+constexpr int RR_DRIVE_MOTOR_ID = 4;
+
+constexpr int FL_STEER_MOTOR_ID = 5;
+constexpr int RL_STEER_MOTOR_ID = 6;
+constexpr int FR_STEER_MOTOR_ID = 7;
+constexpr int RR_STEER_MOTOR_ID = 8;
+
+constexpr int FL_DRIVE_ENCODER_CHAN_A = 21;
+constexpr int RL_DRIVE_ENCODER_CHAN_A = 22;
+constexpr int FR_DRIVE_ENCODER_CHAN_A = 23;
+constexpr int RR_DRIVE_ENCODER_CHAN_A = 24;
+
+constexpr int FL_DRIVE_ENCODER_CHAN_B = 25;
+constexpr int RL_DRIVE_ENCODER_CHAN_B = 26;
+constexpr int FR_DRIVE_ENCODER_CHAN_B = 27;
+constexpr int RR_DRIVE_ENCODER_CHAN_B = 28;
+
+constexpr int FL_STEER_ENCODER_CHAN_A = 11;
+constexpr int RL_STEER_ENCODER_CHAN_A = 12;
+constexpr int FR_STEER_ENCODER_CHAN_A = 13;
+constexpr int RR_STEER_ENCODER_CHAN_A = 14;
+
+constexpr int FL_STEER_ENCODER_CHAN_B = 15;
+constexpr int RL_STEER_ENCODER_CHAN_B = 16;
+constexpr int FR_STEER_ENCODER_CHAN_B = 17;
+constexpr int RR_STEER_ENCODER_CHAN_B = 18;
+
+constexpr double BASE_WIDTH = 24.;
+constexpr double BASE_LENGTH = 36.;
+
+constexpr double kP = 1.;
+constexpr double kI = 0.;
+constexpr double kD = 0.;
+
+SwerveDrive::SwerveDrive() {
   DBG;
-#if 0
-  double kP = 1.;
-  double kI = 0.;
-  double kD = 0.;
+  // Create motors
+  m_drive[FL] = new WPI_TalonSRX(FL_DRIVE_MOTOR_ID);
+  m_drive[RL] = new WPI_TalonSRX(RL_DRIVE_MOTOR_ID);
+  m_drive[FR] = new WPI_TalonSRX(FR_DRIVE_MOTOR_ID);
+  m_drive[RR] = new WPI_TalonSRX(RR_DRIVE_MOTOR_ID);
+  m_steer[FL] = new WPI_TalonSRX(FL_STEER_MOTOR_ID);
+  m_steer[RL] = new WPI_TalonSRX(RL_STEER_MOTOR_ID);
+  m_steer[FR] = new WPI_TalonSRX(FR_STEER_MOTOR_ID);
+  m_steer[RR] = new WPI_TalonSRX(RR_STEER_MOTOR_ID);
 
-  WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
-  WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
-  WPI_TalonSRX *m3 = new WPI_TalonSRX(3);
-  WPI_TalonSRX *m4 = new WPI_TalonSRX(4);
-  WPI_TalonSRX *m5 = new WPI_TalonSRX(5);
-  WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
-  WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
-  WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
+  // Create encoders
+  m_angle[FL] = new Encoder(FL_STEER_ENCODER_CHAN_A, FL_STEER_ENCODER_CHAN_B);
+  m_angle[RL] = new Encoder(RL_STEER_ENCODER_CHAN_A, RL_STEER_ENCODER_CHAN_B);
+  m_angle[FR] = new Encoder(FR_STEER_ENCODER_CHAN_A, FR_STEER_ENCODER_CHAN_B);
+  m_angle[RR] = new Encoder(RR_STEER_ENCODER_CHAN_A, RR_STEER_ENCODER_CHAN_B);
 
-  pid[FL] = new PIDController(kP, kI, kD,
-    new PIDSource() {
-      public double pidGet() {
-        DBG;
-        return findEncAng("encFL.getDistance()");
-      }
-      public void setPIDSourceType(PIDSourceType pidSource) {
-        DBG;
-        // Disallow setting of SourceType
-        // Default is PIDSourceType.kDisplacement
-      }
-    },
-    new PIDOutput() {
-      public void pidWrite(double d) {
-        DBG;
-        rotFL_set(d);
-      }
-    }
-  );
-  pidFL.setContinuous();
-  pidFL.setInputRange(-180, 180);
-  pidFL.setOutputRange(-1, 1);
-  pidFL.setSetpoint(0);
-  // this.controllerRotate.setPercentTolerance(0.07);
-  pidFL.enable();
-  //enc.setDistancePerPulse(0.875);
-  //enc.setSamplesToAverage(127);
-#endif
-};
+  m_distance[FL] = nullptr; // = new (Encoder(FL_DRIVE_ENCODER_CHAN_A, FL_DRIVE_ENCODER_CHAN_B);
+  m_distance[RL] = nullptr; // = new (Encoder(RL_DRIVE_ENCODER_CHAN_A, RL_DRIVE_ENCODER_CHAN_B);
+  m_distance[FR] = nullptr; // = new (Encoder(FR_DRIVE_ENCODER_CHAN_A, FR_DRIVE_ENCODER_CHAN_B);
+  m_distance[RR] = nullptr; // = new (Encoder(RR_DRIVE_ENCODER_CHAN_A, RR_DRIVE_ENCODER_CHAN_B);
 
-SwerveDrive::SwerveDrive(SpeedController& fl_drive_motor,
-                         SpeedController& rl_drive_motor,
-                         SpeedController& fr_drive_motor,
-                         SpeedController& rr_drive_motor,
-                         SpeedController& fl_steer_motor,
-                         SpeedController& rl_steer_motor,
-                         SpeedController& fr_steer_motor,
-                         SpeedController& rr_steer_motor,
-                         double base_width,
-                         double base_length)
-    : m_drive{&fl_drive_motor,
-              &rl_drive_motor,
-              &fr_drive_motor,
-              &rr_drive_motor},
-      m_steer{&fl_steer_motor,
-              &rl_steer_motor,
-              &fr_steer_motor,
-              &rr_steer_motor},
-      m_base_width(base_width),
-      m_base_length(base_length) {
-  DBG;
-  for (size_t i = 0; i < kWheels; i++) {
-    AddChild(&m_drive[i]);
-    AddChild(&m_steer[i]);
-  }
+  m_base_width = BASE_WIDTH;
+  m_base_length = BASE_LENGTH;
+
+  m_P = kP;
+  m_I = kI;
+  m_D = kD;
 
   // Assume center of robot is geometric center of wheels
   // And geometric center is center of gravity for robot
-  double l = base_length / 2.;
-  double w = base_width / 2.;
+  double l = m_base_length / 2.;
+  double w = m_base_width / 2.;
   // The following normalizes rotation
   double p = 1.0 / std::sqrt(l * l + w * w);
   m_wheel[FL] = new Wheel( l,-w, p);
   m_wheel[RL] = new Wheel(-l,-w, p);
   m_wheel[FR] = new Wheel( l, w, p);
   m_wheel[RR] = new Wheel(-l, w, p);
+
+      class myPIDSource : public PIDSource {
+       public:
+        int m_index;
+        myPIDSource(int index) : PIDSource() { DBGv(m_index); m_index = index; };
+        double PIDGet() {
+          DBG;
+          return 0;//SwerveDrive::GetAngle(m_index);
+        };
+        void SetPIDSourceType(PIDSourceType pidSource) {
+          DBG;
+          // Do not change from default of PIDSourceType.kDisplacement
+        };
+        PIDSourceType GetPIDSourceType() {
+          DBG;
+          return PIDSourceType::kDisplacement;
+        };
+      };
+      class myPIDOutput : public PIDOutput {
+       public:
+        int m_index;
+        myPIDOutput(int index) : PIDOutput() { DBGv(m_index); m_index = index; }
+        void PIDWrite(double d) {
+          DBG;
+          //SwerveDrive::SetAngle(m_index, d);
+        };
+      };
+
+  // Create PID controllers
+  for (size_t i = 0; i < kWheels; i++) {
+    m_pid[i] = new PIDController(m_P, m_I, m_D, new myPIDSource(i), new myPIDOutput(i));
+#if 0
+    m_pid[i]->setContinuous();
+    m_pid[i]->setInputRange(-180, 180);
+    m_pid[i]->setOutputRange(-1, 1);
+    m_pid[i]->setSetpoint(0);
+    m_pid[i]->enable();
+    // this.controllerRotate.setPercentTolerance(0.07);
+    //enc.setDistancePerPulse(0.875);
+    //enc.setSamplesToAverage(127);
+#endif
+  };
+
+
+  for (size_t i = 0; i < kWheels; i++) {
+    AddChild(&m_drive[i]);
+    AddChild(&m_steer[i]);
+  }
 
   static int instances = 0;
   ++instances;
@@ -638,6 +671,22 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
   builder.AddDoubleProperty("Rear Right Motor Angle",
                             [=]() { return m_steer[RR]->Get(); },
                             [=](double value) { m_steer[RR]->Set(value); });
+}
+
+double SwerveDrive::GetAngle(int index) {
+  double angle = 0.;
+  if (m_angle[index] != nullptr) {
+    angle = m_angle[index]->GetDistance();
+  }
+  DBGST("index %d angle " f1f, index, angle);
+  return angle;
+}
+
+void SwerveDrive::SetAngle(int index, double angle) {
+  DBGST("index %d angle " f1f, index, angle);
+  if (m_steer[index] != nullptr) {
+    m_steer[index]->Set(angle);
+  }
 }
 
 /*

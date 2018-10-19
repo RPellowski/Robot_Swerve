@@ -795,7 +795,9 @@ class Encoder : public ErrorBase, public SendableBase, public CounterBase, publi
   EncodingType m_encodingType;
   int m_encodingScale;
   double m_distancePerPulse;
+  double m_maxPeriod;
   bool m_reverseDirection;
+  double m_period;
 };
 Encoder::Encoder(int aChannel, int bChannel, bool reverseDirection, EncodingType encodingType) {
   m_encodingType = encodingType;
@@ -829,15 +831,15 @@ int32_t Encoder::Get() const {
 int32_t Encoder::GetRaw() const { int32_t raw = 0.; DBGv(raw); return raw; }
 int32_t Encoder::GetEncodingScale() const { DBGv(m_encodingScale); return m_encodingScale; }
 void Encoder::Reset() { DBG; }
-double Encoder::GetPeriod() const { double p = 0; DBGf(p); return p; }
-void Encoder::SetMaxPeriod(double maxPeriod) { DBGf(maxPeriod); }
+double Encoder::GetPeriod() const { DBGf(m_period); return m_maxPeriod; }
+void Encoder::SetMaxPeriod(double maxPeriod) { DBGf(maxPeriod); m_maxPeriod = maxPeriod; }
 bool Encoder::GetStopped() const { DBG; return true; }
 bool Encoder::GetDirection() const { DBGv(m_reverseDirection); return m_reverseDirection; }
 double Encoder::GetDistance() const { DBG; return GetRaw() * DecodingScaleFactor() * m_distancePerPulse; }
 double Encoder::GetRate() const { double r = m_distancePerPulse / GetPeriod(); DBGf(r); return r;}
 void Encoder::SetMinRate(double minRate) { DBGf(minRate); SetMaxPeriod(m_distancePerPulse / minRate); }
 void Encoder::SetDistancePerPulse(double distancePerPulse) { DBGf(distancePerPulse); m_distancePerPulse = distancePerPulse; }
-void Encoder::SetReverseDirection(bool reverseDirection) { DBGv(reverseDirection); }
+void Encoder::SetReverseDirection(bool reverseDirection) { DBGv(reverseDirection); m_reverseDirection = reverseDirection; }
 void Encoder::SetSamplesToAverage(int32_t samplesToAverage) {
   DBGv(samplesToAverage);
   if (samplesToAverage < 1 || samplesToAverage > 127) { return; }
@@ -870,7 +872,7 @@ void Encoder::InitEncoder(bool reverseDirection, EncodingType encodingType) {
   m_reverseDirection = reverseDirection;
   DBGST("encodingType %d reverseDirection %d", encodingType, reverseDirection);
 }
-#define FOOBAR
+#define xFOOBAR
 #ifdef FOOBAR
 } // namespace frc
 // -----------------------------------------------------------------
@@ -896,10 +898,10 @@ int main()
 #if 1
   DBG;
   Encoder e(1,2);
-  e.SetMinRate(3.);
   e.SetDistancePerPulse(5);
   e.SetReverseDirection(true);
   e.SetSamplesToAverage(127);
+  e.SetMinRate(3.);
   e.SetMaxPeriod(0.5);
   e.GetRaw();
   e.GetEncodingScale();
@@ -1271,7 +1273,7 @@ int main()
   WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
   WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
   WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
-  SwerveDrive *s = new SwerveDrive(*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,24.,30.);
+  SwerveDrive *s = new SwerveDrive(); //*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,24.,30.);
   //s->DriveCartesian(1.,1.,90.,90.);
   //s->DriveCartesian(0.,0.,1.,0.);
   //s->DriveCartesian(1.,0.,0.,0.);

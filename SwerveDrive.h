@@ -24,10 +24,8 @@ enum { FL = 0, RL, FR, RR };
 
 class SwerveDrive : public RobotDriveBase {
  public:
-  SwerveDrive(int deviceNumbers[8],
-              double base_width,
-              double base_length);
-
+  SwerveDrive();
+#if 0
   SwerveDrive(SpeedController& fl_drive_motor,
               SpeedController& rl_drive_motor,
               SpeedController& fr_drive_motor,
@@ -38,7 +36,7 @@ class SwerveDrive : public RobotDriveBase {
               SpeedController& rr_steer_motor,
               double base_width,
               double base_length);
-
+#endif
   ~SwerveDrive() override;
 
   // Disable copy and assignment operators
@@ -65,10 +63,18 @@ class SwerveDrive : public RobotDriveBase {
 
   void GetDescription(wpi::raw_ostream& desc) const override;
   void InitSendable(SendableBuilder& builder) override;
+  double GetAngle(int index);
+  void SetAngle(int index, double angle);
 
  private:
   SpeedController* m_drive[kWheels];
   SpeedController* m_steer[kWheels];
+  PIDController* m_pid[kWheels];
+  Encoder* m_angle[kWheels];
+  Encoder* m_distance[kWheels];
+  double m_P;
+  double m_I;
+  double m_D;
   double m_base_width;
   double m_base_length;
   Wheel *m_wheel[kWheels];
