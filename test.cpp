@@ -284,8 +284,8 @@ WPI_TalonSRX::~WPI_TalonSRX() { DBG_SRX(""); }
 void WPI_TalonSRX::Set(double speed) { _speed = speed; DBG_SRX("speed %f", speed); };
 void WPI_TalonSRX::PIDWrite(double output) { DBG_SRX("output %f", output); }
 double WPI_TalonSRX::Get() const { DBG_SRX("speed %f", _speed); return _speed; };
-void WPI_TalonSRX::Set(ControlMode mode, double value) { DBG_SRX(""); }
-void WPI_TalonSRX::Set(ControlMode mode, double demand0, double demand1) { DBG_SRX(""); }
+void WPI_TalonSRX::Set(ControlMode mode, double value) { DBG_SRX("add more DBG"); }
+void WPI_TalonSRX::Set(ControlMode mode, double demand0, double demand1) { DBG_SRX("add more DBG"); }
 void WPI_TalonSRX::SetInverted(bool isInverted) { _invert = isInverted; DBG_SRX("invert %d", _invert); };
 bool WPI_TalonSRX::GetInverted() const { DBG_SRX("isInverted %d", _invert); return _invert; };
 void WPI_TalonSRX::Disable() { DBG_SRX(""); }
@@ -412,9 +412,9 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
   PIDBase(const PIDBase&) = delete;
   PIDBase& operator=(const PIDBase) = delete;
   //virtual double Get() const;
-  //virtual void SetContinuous(bool continuous = true);
-  //virtual void SetInputRange(double minimumInput, double maximumInput);
-  //virtual void SetOutputRange(double minimumOutput, double maximumOutput);
+  virtual void SetContinuous(bool continuous = true);
+  virtual void SetInputRange(double minimumInput, double maximumInput);
+  virtual void SetOutputRange(double minimumOutput, double maximumOutput);
   void SetPID(double p, double i, double d) override;
   virtual void SetPID(double p, double i, double d, double f);
   void SetP(double p);
@@ -504,6 +504,7 @@ PIDBase::PIDBase(double Kp, double Ki, double Kd, double Kf, PIDSource& source, 
 double PIDBase::Get() const {
   return m_result;
 }
+*/
 void PIDBase::SetContinuous(bool continuous) {
   m_continuous = continuous;
 }
@@ -516,7 +517,6 @@ void PIDBase::SetInputRange(double minimumInput, double maximumInput) {
   SetSetpoint(m_setpoint);
 }
 void PIDBase::SetOutputRange(double minimumOutput, double maximumOutput) { m_minimumOutput = minimumOutput; m_maximumOutput = maximumOutput; }
-*/
 void PIDBase::SetPID(double p, double i, double d) { DBG; { m_P = p; m_I = i; m_D = d; } }
 void PIDBase::SetPID(double p, double i, double d, double f) {  DBG; m_P = p; m_I = i; m_D = d; m_F = f; }
 void PIDBase::SetP(double p) { DBG;  m_P = p; }
@@ -646,6 +646,7 @@ void PIDBase::Calculate() {
     m_totalError = totalError;
     m_result = result;
   }
+  DBGf4(m_prevError, m_error, m_totalError, m_result);
 }
 double PIDBase::CalculateFeedForward() {
   DBG;

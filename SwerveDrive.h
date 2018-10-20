@@ -72,9 +72,9 @@ class SwerveDrive : public RobotDriveBase {
   PIDController* m_pid[kWheels];
   Encoder* m_angle[kWheels];
   Encoder* m_distance[kWheels];
-  double m_P;
-  double m_I;
-  double m_D;
+  double m_angleP;
+  double m_angleI;
+  double m_angleD;
   double m_base_width;
   double m_base_length;
   Wheel *m_wheel[kWheels];

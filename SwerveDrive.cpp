@@ -433,9 +433,13 @@ constexpr int RR_STEER_ENCODER_CHAN_B = 18;
 constexpr double BASE_WIDTH = 24.;
 constexpr double BASE_LENGTH = 36.;
 
-constexpr double kP = 1.;
-constexpr double kI = 0.;
-constexpr double kD = 0.;
+constexpr double kAngleP = 1.;
+constexpr double kAngleI = 0.;
+constexpr double kAngleD = 0.;
+
+constexpr double kDistanceP = 1.;
+constexpr double kDistanceI = 0.;
+constexpr double kDistanceD = 0.;
 
 SwerveDrive::SwerveDrive() {
   DBG;
@@ -463,9 +467,9 @@ SwerveDrive::SwerveDrive() {
   m_base_width = BASE_WIDTH;
   m_base_length = BASE_LENGTH;
 
-  m_P = kP;
-  m_I = kI;
-  m_D = kD;
+  m_angleP = kAngleP;
+  m_angleI = kAngleI;
+  m_angleD = kAngleD;
 
   // Assume center of robot is geometric center of wheels
   // And geometric center is center of gravity for robot
@@ -478,45 +482,53 @@ SwerveDrive::SwerveDrive() {
   m_wheel[FR] = new Wheel( l, w, p);
   m_wheel[RR] = new Wheel(-l, w, p);
 
-      class myPIDSource : public PIDSource {
-       public:
-        int m_index;
-        myPIDSource(int index) : PIDSource() { DBGv(m_index); m_index = index; };
-        double PIDGet() {
-          DBG;
-          return 0;//SwerveDrive::GetAngle(m_index);
-        };
-        void SetPIDSourceType(PIDSourceType pidSource) {
-          DBG;
-          // Do not change from default of PIDSourceType.kDisplacement
-        };
-        PIDSourceType GetPIDSourceType() {
-          DBG;
-          return PIDSourceType::kDisplacement;
-        };
-      };
-      class myPIDOutput : public PIDOutput {
-       public:
-        int m_index;
-        myPIDOutput(int index) : PIDOutput() { DBGv(m_index); m_index = index; }
-        void PIDWrite(double d) {
-          DBG;
-          //SwerveDrive::SetAngle(m_index, d);
-        };
-      };
+    // Inner objects to support PIDController
+    class AnglePIDSource : public PIDSource {
+     public:
+      int m_index;
+      SwerveDrive* m_swerve;
+      AnglePIDSource(SwerveDrive* swerve, int index) : PIDSource() {
+        DBGv(index);
+        m_swerve = swerve;
+        m_index = index;
+      }
+      double PIDGet() {
+        DBG;
+        m_swerve->GetAngle(m_index);
+      }
+      void SetPIDSourceType(PIDSourceType pidSource) {
+        DBG;
+        // Do not change from default of PIDSourceType.kDisplacement
+      }
+    };
+
+    class AnglePIDOutput : public PIDOutput {
+     public:
+      int m_index;
+      SwerveDrive* m_swerve;
+      AnglePIDOutput(SwerveDrive * swerve, int index) : PIDOutput() {
+        DBGv(index);
+        m_swerve = swerve;
+        m_index = index;
+      }
+      void PIDWrite(double d) {
+        DBG;
+        m_swerve->SetAngle(m_index, d);
+      }
+    };
 
   // Create PID controllers
   for (size_t i = 0; i < kWheels; i++) {
-    m_pid[i] = new PIDController(m_P, m_I, m_D, new myPIDSource(i), new myPIDOutput(i));
+    m_pid[i] = new PIDController(m_angleP, m_angleI, m_angleD, new AnglePIDSource(this, i), new AnglePIDOutput(this, i));
+    m_pid[i]->SetContinuous();
+    m_pid[i]->SetInputRange(-180, 180);
+    m_pid[i]->SetOutputRange(-1, 1);
+    m_pid[i]->SetSetpoint(0);
+    m_pid[i]->Enable();
 #if 0
-    m_pid[i]->setContinuous();
-    m_pid[i]->setInputRange(-180, 180);
-    m_pid[i]->setOutputRange(-1, 1);
-    m_pid[i]->setSetpoint(0);
-    m_pid[i]->enable();
-    // this.controllerRotate.setPercentTolerance(0.07);
-    //enc.setDistancePerPulse(0.875);
-    //enc.setSamplesToAverage(127);
+    // m_pid[i]->SetPercentTolerance(0.07);
+    // m_angle[i]->SetDistancePerPulse(0.875);
+    // m_angle[i]->SetSamplesToAverage(127);
 #endif
   };
 
@@ -580,7 +592,7 @@ void SwerveDrive::DriveCartesian(double north,
 
   // Set steering motor angles first
   for (size_t i = 0; i < kWheels; i++) {
-    m_steer[i]->Set(m_wheel[i]->Angle());
+    m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
   }
 
   // Verify that wheels are accurately positioned
