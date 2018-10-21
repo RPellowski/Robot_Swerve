@@ -1,38 +1,38 @@
-/*----------------------------------------------------------------------------
+/* --------------------------------------------------------------------------
  * SwerveDrive
  * FRC Team 1740
  * Notes
- *   It appears that we need to manage PID ourselves:
+ *   Manage PID in this module:
  *     https://www.chiefdelphi.com/forums/showthread.php?p=1726937
- *     Note that if you use the WPI-compatible wrappers in a WPI drivetrain object,
- *     you are restricted to open-loop control."
- *     SpeedController interface does not have a method for changing control mode
- *     Write your own Talon wrapper implementing SpeedController that allows you
- *     to use closed-loop control
+ *     Note that if you use the WPI-compatible wrappers in a WPI drivetrain
+ *     object, you are restricted to open-loop control.
+ *     SpeedController interface does not have a method for changing control
+ *     mode. Write your own Talon wrapper implementing SpeedController that
+ *     allows you to use closed-loop control.
  *
- *   What motors do/do not need PID?
- *     where to use PID for velocity vs distance
- *       PID for steer
- *       no PID for velocity
- *       possibly PID for autonomous distance
+ *   Use of PID for motors:
+ *     PID for steer
+ *     no PID for velocity
+ *     possibly PID for distance in autonomous mode
  *
- *   Where is the best location to manage motors?
- *     inside vs outside class
- *     inside the class
- *
- *   Base on which object(s)?
- *   Have two object modules, Swerve is like Mecanum, but create Talons here
- *     RobotDriveBase like MecanumDrive
- *       DriveCartesian
- *       StopMotor
- *       GetDescription
- *       InitSendable
- *       calls AddChild, SetName, Set, Feed
- *     Subsystem like DriveTrain
- *       CreateTalons (WPI_TalonSRX)
- *       InitDefaultCommand
- *       Go/Stop
- *       calls Set, SetPosition, SetExpiration, SetSafetyEnabled(false)
+ *   The objects involved:
+ *     Wheel - manages only the mathematical representation of an assembly
+ *       Steer Motor, Drive Motor, geometry
+ *       Calculates angles and speeds given input vectors on three axes
+ *     SwerveDrive - like MecanumDrive, derived from RobotDriveBase object
+ *       Methods to implement
+ *         DriveCartesian, DriveAckermann
+ *         StopMotor, GetDescription, InitSendable
+ *       Methods called
+ *         AddChild, SetName, Set, Feed
+ *         SetPosition, SetExpiration, SetSafetyEnabled
+ *       Additional responsibilities
+ *         Create Talons, Encoders, PID, Wheel objects
+ *     SwerveSubsystem - derived from Subsystem object
+ *       Methods to implement
+ *         InitDefaultCommand, Go, Stop
+ *       Methods called
+ *         SwerveDrive methods: DriveCartesian, DriveAckermann
  *
  *   Where to create and maintain gyro?
  *     Probably the utility module
@@ -41,11 +41,11 @@
  * References:
  *   Java version: http://team484.org/programming/notes/swerve-drive/
  *
- *----------------------------------------------------------------------------*/
+ * ------------------------------------------------------------------------ */
 
-/**
+/*
  * TBD
- * Add encoders for rotation (steering)
+ * (done) Add encoders for rotation (steering)
  * Add encoders for speed/distance (for kinematics)
  * Add default and settable PID values for rotation
  * Add compensation for rotation near discontinuity (0/360)
@@ -55,7 +55,7 @@
  * Add (non-linear) scaling on rotation inputs
  * Add scaling on speed outputs
  * Add scaling on rotation outputs
- * Enable motor safety? where?
+ * (done) Enable motor safety? where?
  * Test mode
  *  Single wheel direction
  *  Single wheel speed
@@ -109,7 +109,8 @@ class Wheel {
                                 double speed_next, double next);
   void NormalizeRotation();
 
-  void ApplyTranslationAndRotation(double north, double east, double omega = 0);
+  void ApplyTranslationAndRotation(double north, double east,
+                                   double omega = 0);
   static void CalculateAckermanCG(double north, double east, double cgNorth,
                                   double& corDistance, double& omega);
   void ApplyAckermann(double north, double corDistance, double omega);
@@ -184,7 +185,7 @@ double Wheel::AngularDistance(double speed_prev, double prev,
  * NormalizeRotation
  *   Modify Wheel - m_speed and m_angle
  *
- * Adjust new angle so it differs from the previous angle by less than 90 degrees
+ * Adjust new angle so it differs from the previous angle by < 90 degrees
  *   First, given previous and next, calculate the delta angle to be applied
  *   Second, set a new angle that is within 90 degrees
  *   Last, set new speed sign (which may be negative for reverse direction)
@@ -230,7 +231,8 @@ void Wheel::NormalizeRotation() {
  *   m_speed - new calculation
  *   m_angle - new calculation
  */
-void Wheel::ApplyTranslationAndRotation(double north, double east, double omega) {
+void Wheel::ApplyTranslationAndRotation(double north, double east,
+                                        double omega) {
   double dX;
   double dY;
   double dOmegaX;
@@ -459,14 +461,16 @@ SwerveDrive::SwerveDrive() {
   m_angle[FR] = new Encoder(FR_STEER_ENCODER_CHAN_A, FR_STEER_ENCODER_CHAN_B);
   m_angle[RR] = new Encoder(RR_STEER_ENCODER_CHAN_A, RR_STEER_ENCODER_CHAN_B);
 
-  m_distance[FL] = nullptr; // = new (Encoder(FL_DRIVE_ENCODER_CHAN_A, FL_DRIVE_ENCODER_CHAN_B);
-  m_distance[RL] = nullptr; // = new (Encoder(RL_DRIVE_ENCODER_CHAN_A, RL_DRIVE_ENCODER_CHAN_B);
-  m_distance[FR] = nullptr; // = new (Encoder(FR_DRIVE_ENCODER_CHAN_A, FR_DRIVE_ENCODER_CHAN_B);
-  m_distance[RR] = nullptr; // = new (Encoder(RR_DRIVE_ENCODER_CHAN_A, RR_DRIVE_ENCODER_CHAN_B);
+  m_distance[FL] = nullptr; // = new Encoder(FL_DRIVE_ENCODER_CHAN_A, FL_DRIVE_ENCODER_CHAN_B);
+  m_distance[RL] = nullptr; // = new Encoder(RL_DRIVE_ENCODER_CHAN_A, RL_DRIVE_ENCODER_CHAN_B);
+  m_distance[FR] = nullptr; // = new Encoder(FR_DRIVE_ENCODER_CHAN_A, FR_DRIVE_ENCODER_CHAN_B);
+  m_distance[RR] = nullptr; // = new Encoder(RR_DRIVE_ENCODER_CHAN_A, RR_DRIVE_ENCODER_CHAN_B);
 
+  // Set dimensions
   m_base_width = BASE_WIDTH;
   m_base_length = BASE_LENGTH;
 
+  // Set common PID parameters
   m_angleP = kAngleP;
   m_angleI = kAngleI;
   m_angleD = kAngleD;
@@ -562,7 +566,7 @@ SwerveDrive::~SwerveDrive() {
  *   north - forward velocity setting
  *   east - right velocity setting
  *   omega - clockwise rotation rate setting (yaw)
- *   gyro - current rotation measurement relative to the field (zero at initialization)
+ *   gyro - current rotation measurement relative to the field (zero at init)
  *
  * Intermediates
  *   m_wheel[] - modify Wheel object representations with get and set logic
@@ -717,7 +721,8 @@ void SwerveDrive::SetAngle(int index, double angle) {
  * Based on RobotDrive version
  */
 void SwerveDrive::RotateVector(double& x, double& y, double angle) {
-  DBGST("IN  x %f y %f (%.1f) angle %.1f", x, y, degrees(std::atan2(y, x)), angle);
+  DBGST("IN  x %f y %f (%.1f) angle %.1f",
+        x, y, degrees(std::atan2(y, x)), angle);
   double r = radians(angle);
   double cosA = std::cos(r);
   double sinA = std::sin(r);

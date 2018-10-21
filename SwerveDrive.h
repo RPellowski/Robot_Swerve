@@ -63,8 +63,6 @@ class SwerveDrive : public RobotDriveBase {
 
   void GetDescription(wpi::raw_ostream& desc) const override;
   void InitSendable(SendableBuilder& builder) override;
-  double GetAngle(int index);
-  void SetAngle(int index, double angle);
 
  private:
   SpeedController* m_drive[kWheels];
@@ -79,6 +77,8 @@ class SwerveDrive : public RobotDriveBase {
   double m_base_length;
   Wheel *m_wheel[kWheels];
 
+  double GetAngle(int index);
+  void SetAngle(int index, double angle);
   void NormalizeSpeeds();
   static void RotateVector(double& x, double& y, double angle);
 };
