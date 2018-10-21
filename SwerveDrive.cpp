@@ -443,6 +443,10 @@ constexpr double kDistanceP = 1.;
 constexpr double kDistanceI = 0.;
 constexpr double kDistanceD = 0.;
 
+constexpr double kAngleTolerance = 0.25 / 360.0;
+constexpr double kAngleDistancePerPulse = 360.0 / 4000.0;
+constexpr int kAngleSamplesToAverage = 127;
+
 SwerveDrive::SwerveDrive() {
   DBG;
   // Create motors
@@ -486,7 +490,7 @@ SwerveDrive::SwerveDrive() {
   m_wheel[FR] = new Wheel( l, w, p);
   m_wheel[RR] = new Wheel(-l, w, p);
 
-    // Inner objects to support PIDController
+    // Inner objects to support PIDController (needs PIDSource and PIDOutput)
     class AnglePIDSource : public PIDSource {
      public:
       SwerveDrive* m_swerve;
@@ -531,11 +535,10 @@ SwerveDrive::SwerveDrive() {
     m_pid[i]->SetOutputRange(-1, 1);
     m_pid[i]->SetSetpoint(0);
     m_pid[i]->Enable();
-    // m_pid[i]->SetPercentTolerance(0.07);
-    m_angle[i]->SetDistancePerPulse(360.0 / 4000.0);
-    // m_angle[i]->SetSamplesToAverage(127);
+    // m_pid[i]->SetPercentTolerance(kAngleTolerance);
+    m_angle[i]->SetDistancePerPulse(kAngleDistancePerPulse);
+    // m_angle[i]->SetSamplesToAverage(kAngleSamplesToAverage);
   };
-
 
   for (size_t i = 0; i < kWheels; i++) {
     AddChild(&m_drive[i]);
@@ -689,6 +692,17 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
                             [=](double value) { m_steer[RR]->Set(value); });
 }
 
+/*
+ * GetAngle
+ *   Called by a PIDSource object to get the current steer motor angle as
+ *     measured by its encoder - feeds into the PIDController
+ *
+ * Inputs
+ *   index - which steer motor / encoder
+ *
+ * Outputs
+ *   angle - current encoder value
+ */
 double SwerveDrive::GetAngle(int index) {
   double angle = 0.;
   if (m_angle[index] != nullptr) {
@@ -698,6 +712,15 @@ double SwerveDrive::GetAngle(int index) {
   return angle;
 }
 
+/*
+ * SetAngle
+ *   Called by a PIDOutput object to set a steer motor speed to achieve the
+ *     desired angle objective - based on calculation of the PIDController
+ *
+ * Inputs
+ *   index - which steer motor
+ *   angle - motor speed to set
+ */
 void SwerveDrive::SetAngle(int index, double angle) {
   DBGST("index %d angle" f1f, index, angle);
   if (m_steer[index] != nullptr) {
