@@ -527,11 +527,9 @@ SwerveDrive::SwerveDrive() {
     m_pid[i]->SetOutputRange(-1, 1);
     m_pid[i]->SetSetpoint(0);
     m_pid[i]->Enable();
-#if 0
     // m_pid[i]->SetPercentTolerance(0.07);
-    // m_angle[i]->SetDistancePerPulse(0.875);
+    m_angle[i]->SetDistancePerPulse(360.0 / 4000.0);
     // m_angle[i]->SetSamplesToAverage(127);
-#endif
   };
 
 
@@ -692,12 +690,12 @@ double SwerveDrive::GetAngle(int index) {
   if (m_angle[index] != nullptr) {
     angle = m_angle[index]->GetDistance();
   }
-  DBGST("index %d angle " f1f, index, angle);
+  DBGST("index %d angle" f1f, index, angle);
   return angle;
 }
 
 void SwerveDrive::SetAngle(int index, double angle) {
-  DBGST("index %d angle " f1f, index, angle);
+  DBGST("index %d angle" f1f, index, angle);
   if (m_steer[index] != nullptr) {
     m_steer[index]->Set(angle);
   }

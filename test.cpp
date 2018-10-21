@@ -663,18 +663,19 @@ double PIDBase::CalculateFeedForward() {
   }
 }
 double PIDBase::GetContinuousError(double error) const {
-  DBG;
+  double rc = error;
   if (m_continuous && m_inputRange != 0) {
     error = std::fmod(error, m_inputRange);
     if (std::fabs(error) > m_inputRange / 2) {
       if (error > 0) {
-        return error - m_inputRange;
+        rc = error - m_inputRange;
       } else {
-        return error + m_inputRange;
+        rc = error + m_inputRange;
       }
     }
   }
-  return error;
+  DBGf3(error, m_inputRange, rc);
+  return rc;
 }
 
 // -----------------------------------------------------------------
@@ -712,13 +713,13 @@ class PIDController : public PIDBase, public Controller {
 #include "SmartDashboard/SendableBuilder.h"
 */
 PIDController::PIDController(double Kp, double Ki, double Kd,            PIDSource* source, PIDOutput* output, double period)
-             : PIDController(Kp, Ki, Kd, 0.0, *source, *output, period ) {}
+             : PIDController(Kp, Ki, Kd, 0.0, *source, *output, period ) { DBG; }
 PIDController::PIDController(double Kp, double Ki, double Kd, double Kf, PIDSource* source, PIDOutput* output, double period)
-             : PIDController(Kp, Ki, Kd, Kf,  *source, *output, period ) {}
+             : PIDController(Kp, Ki, Kd, Kf,  *source, *output, period ) { DBG; }
 PIDController::PIDController(double Kp, double Ki, double Kd,            PIDSource& source, PIDOutput& output, double period)
-             : PIDController(Kp, Ki, Kd, 0.0, source, output, period   ) {}
+             : PIDController(Kp, Ki, Kd, 0.0, source, output, period   ) { DBG; }
 PIDController::PIDController(double Kp, double Ki, double Kd, double Kf, PIDSource& source, PIDOutput& output, double period)
-             : PIDBase(Kp, Ki, Kd, Kf,        source, output           ) {
+             : PIDBase(Kp, Ki, Kd, Kf,        source, output           ) { DBG;
   //m_controlLoop = std::make_unique<Notifier>(&PIDController::Calculate, this);
   //m_controlLoop->StartPeriodic(period);
 }
@@ -778,6 +779,7 @@ class Encoder : public ErrorBase, public SendableBase, public CounterBase, publi
   bool GetStopped() const override;
   bool GetDirection() const override;
   int GetRaw() const;
+  void SetRaw(int32_t raw); // Added for debugging
   int GetEncodingScale() const;
   double GetDistance() const;
   double GetRate() const;
@@ -802,9 +804,11 @@ class Encoder : public ErrorBase, public SendableBase, public CounterBase, publi
   double m_maxPeriod;
   bool m_reverseDirection;
   double m_period;
+  int32_t m_raw;
 };
 Encoder::Encoder(int aChannel, int bChannel, bool reverseDirection, EncodingType encodingType) {
   m_encodingType = encodingType;
+  m_raw = 0.;
   switch (encodingType) {
     case k4X: {
       m_encodingScale = 4;
@@ -832,18 +836,19 @@ int32_t Encoder::Get() const {
   return v;
 }
 
-int32_t Encoder::GetRaw() const { int32_t raw = 0.; DBGv(raw); return raw; }
-int32_t Encoder::GetEncodingScale() const { DBGv(m_encodingScale); return m_encodingScale; }
-void Encoder::Reset() { DBG; }
-double Encoder::GetPeriod() const { DBGf(m_period); return m_maxPeriod; }
-void Encoder::SetMaxPeriod(double maxPeriod) { DBGf(maxPeriod); m_maxPeriod = maxPeriod; }
-bool Encoder::GetStopped() const { DBG; return true; }
-bool Encoder::GetDirection() const { DBGv(m_reverseDirection); return m_reverseDirection; }
-double Encoder::GetDistance() const { DBG; return GetRaw() * DecodingScaleFactor() * m_distancePerPulse; }
-double Encoder::GetRate() const { double r = m_distancePerPulse / GetPeriod(); DBGf(r); return r;}
-void Encoder::SetMinRate(double minRate) { DBGf(minRate); SetMaxPeriod(m_distancePerPulse / minRate); }
+int32_t Encoder::GetRaw() const                            { DBGv(m_raw); return m_raw; }
+void Encoder::SetRaw(int32_t raw)                          { DBGv(raw); m_raw = raw; }
+int32_t Encoder::GetEncodingScale() const                  { DBGv(m_encodingScale); return m_encodingScale; }
+void Encoder::Reset()                                      { DBG; }
+double Encoder::GetPeriod() const                          { DBGf(m_period); return m_maxPeriod; }
+void Encoder::SetMaxPeriod(double maxPeriod)               { DBGf(maxPeriod); m_maxPeriod = maxPeriod; }
+bool Encoder::GetStopped() const                           { DBG; return true; }
+bool Encoder::GetDirection() const                         { DBGv(m_reverseDirection); return m_reverseDirection; }
+double Encoder::GetDistance() const                        { DBG; return GetRaw() * DecodingScaleFactor() * m_distancePerPulse; }
+double Encoder::GetRate() const                            { double r = m_distancePerPulse / GetPeriod(); DBGf(r); return r;}
+void Encoder::SetMinRate(double minRate)                   { DBGf(minRate); SetMaxPeriod(m_distancePerPulse / minRate); }
 void Encoder::SetDistancePerPulse(double distancePerPulse) { DBGf(distancePerPulse); m_distancePerPulse = distancePerPulse; }
-void Encoder::SetReverseDirection(bool reverseDirection) { DBGv(reverseDirection); m_reverseDirection = reverseDirection; }
+void Encoder::SetReverseDirection(bool reverseDirection)   { DBGv(reverseDirection); m_reverseDirection = reverseDirection; }
 void Encoder::SetSamplesToAverage(int32_t samplesToAverage) {
   DBGv(samplesToAverage);
   if (samplesToAverage < 1 || samplesToAverage > 127) { return; }
@@ -868,6 +873,7 @@ double Encoder::PIDGet() {
     case PIDSourceType::kRate: rc = GetRate(); break;
     default: rc = 0.0; break;
   }
+  DBGf(rc);
   return rc;
 }
 void Encoder::InitSendable(SendableBuilder& builder) { DBG; }
@@ -1285,6 +1291,29 @@ int main()
   //s->DriveCartesian(1.,1.,0.,45.);
   //s->DriveCartesian(-1.,0.,0.,0.);
   s->DriveCartesian(1.,1.,1.,0.);
+#if 0
+int counter = 0;
+while (not drive_done && counter < 10) {
+  s->DriveCartesian(1.,1.,1.,0.);
+  counter++;
+  DBGz("==========");
+}
+bool DBGon = false;
+bool drive_done = false;
+    if (DBGon) {
+  // Set steering motor angles first
+  for (size_t i = 0; i < kWheels; i++) {
+    if (i == 0) {DBGon = true;}
+    DBGz("-------------------------------");
+    m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
+    m_pid[i]->Calculate();
+    // Estimate degrees in 50 ms
+    int steerTravel = int(m_steer[i]->Get() * 45. / 360. * 4000);
+    m_angle[i]->SetRaw(m_angle[i]->GetRaw()+steerTravel);
+    DBGon = false;
+    //drive_done = true;
+
+#endif
 #if 0
   s->StopMotor();
   delete s;
