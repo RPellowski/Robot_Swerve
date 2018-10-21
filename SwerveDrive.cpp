@@ -485,8 +485,8 @@ SwerveDrive::SwerveDrive() {
     // Inner objects to support PIDController
     class AnglePIDSource : public PIDSource {
      public:
-      int m_index;
       SwerveDrive* m_swerve;
+      int m_index;
       AnglePIDSource(SwerveDrive* swerve, int index) : PIDSource() {
         DBGv(index);
         m_swerve = swerve;
@@ -498,15 +498,15 @@ SwerveDrive::SwerveDrive() {
       }
       void SetPIDSourceType(PIDSourceType pidSource) {
         DBG;
-        // Do not change from default of PIDSourceType.kDisplacement
+        // No-op - Prevent change from default of PIDSourceType.kDisplacement
       }
     };
 
     class AnglePIDOutput : public PIDOutput {
      public:
-      int m_index;
       SwerveDrive* m_swerve;
-      AnglePIDOutput(SwerveDrive * swerve, int index) : PIDOutput() {
+      int m_index;
+      AnglePIDOutput(SwerveDrive* swerve, int index) : PIDOutput() {
         DBGv(index);
         m_swerve = swerve;
         m_index = index;
@@ -519,7 +519,9 @@ SwerveDrive::SwerveDrive() {
 
   // Create PID controllers
   for (size_t i = 0; i < kWheels; i++) {
-    m_pid[i] = new PIDController(m_angleP, m_angleI, m_angleD, new AnglePIDSource(this, i), new AnglePIDOutput(this, i));
+    m_pid[i] = new PIDController(m_angleP, m_angleI, m_angleD,
+                                 new AnglePIDSource(this, i),
+                                 new AnglePIDOutput(this, i));
     m_pid[i]->SetContinuous();
     m_pid[i]->SetInputRange(-180, 180);
     m_pid[i]->SetOutputRange(-1, 1);

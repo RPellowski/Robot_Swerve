@@ -19,15 +19,18 @@
 #define DBGz(a)  DBGST("%s",(a))
 #define DBGST(a,...) \
   do { \
-    std::string _f;                                                     \
-    std::regex re1("\\(.*");                                            \
-    std::regex re2(".*[ :](.*::)([^\\(]*).*");                          \
-    std::string repl1 = "";                                             \
-    std::string repl2 = "$1$2";                                         \
-    _f = regex_replace(__PRETTY_FUNCTION__, re1, repl1);                \
-    _f = regex_replace(_f,                   re2, repl2);               \
-    fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",                  \
-      __LINE__, basename((char *)__FILE__), _f.c_str(), ##__VA_ARGS__); \
+    std::string _f,_fclss,_fmeth;    \
+    std::regex re1("\\([^\\)]*\\)"); \
+    std::regex re2("(.*)::(.*)");    \
+    std::regex re3("(.*)[ :]");      \
+    std::regex re4(".*::(?!.*::)");  \
+    _f = regex_replace(__PRETTY_FUNCTION__,    re1, "");   \
+    _fclss = regex_replace(_f,                 re2, "$1"); \
+    _fclss = regex_replace(_fclss,             re3, "");   \
+    _fmeth = _fclss + "::" + regex_replace(_f, re4, "");   \
+    fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",     \
+      __LINE__, basename((char *)__FILE__),                \
+     _fmeth.c_str(), ##__VA_ARGS__);                       \
   } while (0)
 #define f1f " %.6f "
 #define DBGv(a)        DBGST(#a " %d"                    , (a))
