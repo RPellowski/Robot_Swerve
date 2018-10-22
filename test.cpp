@@ -831,7 +831,7 @@ Encoder::Encoder(int aChannel, int bChannel, bool reverseDirection, EncodingType
 Encoder::~Encoder() { DBG; }
 
 int32_t Encoder::Get() const {
-  int32_t v =  static_cast<int32_t>(GetRaw() * DecodingScaleFactor());
+  int32_t v = static_cast<int32_t>(GetRaw() * DecodingScaleFactor());
   DBGv(v);
   return v;
 }

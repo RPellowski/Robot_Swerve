@@ -53,8 +53,11 @@
  * Add reverse kinematics for calculation of location
  * Add (non-linear) scaling on speed inputs
  * Add (non-linear) scaling on rotation inputs
- * Add scaling on speed outputs
- * Add scaling on rotation outputs
+ * Add local scaling on speed outputs
+ * Add local scaling on rotation outputs
+ * Add global scaling on speed outputs
+ * Add global scaling on rotation outputs
+ * Add encoder inversion
  * (done) Enable motor safety? where?
  * Test mode
  *  Single wheel direction
@@ -119,6 +122,10 @@ class Wheel {
   double Speed(double speed);
   double Angle();
   double Angle(double angle);
+  double SteerOutputScale();
+  double SteerOutputScale(double steer_output_scale);
+  double DriveOutputScale();
+  double DriveOutputScale(double drive_output_scale);
  private:
   double m_north;
   double m_east;
@@ -127,6 +134,8 @@ class Wheel {
   double m_angle;
   double m_speed_prev;
   double m_angle_prev;
+  double m_steer_output_scale;
+  double m_drive_output_scale;
 };
 
 /*
@@ -397,11 +406,37 @@ double Wheel::Angle(double angle) {
   return m_angle;
 };
 
+/* Getter for steer_output_scale */
+double Wheel::SteerOutputScale() {
+  DBGf(m_steer_output_scale);
+  return m_steer_output_scale;
+};
+
+/* Setter for steer_output_scale */
+double Wheel::SteerOutputScale(double steer_output_scale) {
+  DBGf2(m_steer_output_scale, steer_output_scale);
+  m_steer_output_scale = steer_output_scale;
+  return m_steer_output_scale;
+};
+
+/* Getter for drive_output_scale */
+double Wheel::DriveOutputScale() {
+  DBGf(m_drive_output_scale);
+  return m_drive_output_scale;
+};
+
+/* Setter for drive_output_scale */
+double Wheel::DriveOutputScale(double drive_output_scale) {
+  DBGf2(m_drive_output_scale, drive_output_scale);
+  m_drive_output_scale = drive_output_scale;
+  return m_drive_output_scale;
+};
+
 /* ======================================================================== *
                              Swerve Drive
  * ======================================================================== */
 
-// TBD: fill in the ID values from an include
+// TBD: move constants to an include
 constexpr int FL_DRIVE_MOTOR_ID = 1;
 constexpr int RL_DRIVE_MOTOR_ID = 2;
 constexpr int FR_DRIVE_MOTOR_ID = 3;
@@ -412,15 +447,28 @@ constexpr int RL_STEER_MOTOR_ID = 6;
 constexpr int FR_STEER_MOTOR_ID = 7;
 constexpr int RR_STEER_MOTOR_ID = 8;
 
-constexpr int FL_DRIVE_ENCODER_CHAN_A = 21;
-constexpr int RL_DRIVE_ENCODER_CHAN_A = 22;
-constexpr int FR_DRIVE_ENCODER_CHAN_A = 23;
-constexpr int RR_DRIVE_ENCODER_CHAN_A = 24;
+constexpr double FL_DRIVE_MOTOR_SCALE = 1.0;
+constexpr double RL_DRIVE_MOTOR_SCALE = 1.0;
+constexpr double FR_DRIVE_MOTOR_SCALE = 1.0;
+constexpr double RR_DRIVE_MOTOR_SCALE = 1.0;
 
-constexpr int FL_DRIVE_ENCODER_CHAN_B = 25;
-constexpr int RL_DRIVE_ENCODER_CHAN_B = 26;
-constexpr int FR_DRIVE_ENCODER_CHAN_B = 27;
-constexpr int RR_DRIVE_ENCODER_CHAN_B = 28;
+constexpr double FL_STEER_MOTOR_SCALE = 1.0;
+constexpr double RL_STEER_MOTOR_SCALE = 1.0;
+constexpr double FR_STEER_MOTOR_SCALE = 1.0;
+constexpr double RR_STEER_MOTOR_SCALE = 1.0;
+
+constexpr double DRIVE_MOTORS_SCALE = 1.0;
+constexpr double STEER_MOTORS_SCALE = 1.0;
+
+//constexpr int FL_DRIVE_ENCODER_CHAN_A = 21;
+//constexpr int RL_DRIVE_ENCODER_CHAN_A = 22;
+//constexpr int FR_DRIVE_ENCODER_CHAN_A = 23;
+//constexpr int RR_DRIVE_ENCODER_CHAN_A = 24;
+
+//constexpr int FL_DRIVE_ENCODER_CHAN_B = 25;
+//constexpr int RL_DRIVE_ENCODER_CHAN_B = 26;
+//constexpr int FR_DRIVE_ENCODER_CHAN_B = 27;
+//constexpr int RR_DRIVE_ENCODER_CHAN_B = 28;
 
 constexpr int FL_STEER_ENCODER_CHAN_A = 11;
 constexpr int RL_STEER_ENCODER_CHAN_A = 12;
@@ -432,6 +480,11 @@ constexpr int RL_STEER_ENCODER_CHAN_B = 16;
 constexpr int FR_STEER_ENCODER_CHAN_B = 17;
 constexpr int RR_STEER_ENCODER_CHAN_B = 18;
 
+constexpr bool FL_STEER_ENCODER_REVERSED = false;
+constexpr bool RL_STEER_ENCODER_REVERSED = false;
+constexpr bool FR_STEER_ENCODER_REVERSED = false;
+constexpr bool RR_STEER_ENCODER_REVERSED = false;
+
 constexpr double BASE_WIDTH = 24.;
 constexpr double BASE_LENGTH = 36.;
 
@@ -439,13 +492,13 @@ constexpr double kAngleP = 1.;
 constexpr double kAngleI = 0.;
 constexpr double kAngleD = 0.;
 
-constexpr double kDistanceP = 1.;
-constexpr double kDistanceI = 0.;
-constexpr double kDistanceD = 0.;
+//constexpr double kDistanceP = 1.;
+//constexpr double kDistanceI = 0.;
+//constexpr double kDistanceD = 0.;
 
-constexpr double kAngleTolerance = 0.25 / 360.0;
-constexpr double kAngleDistancePerPulse = 360.0 / 4000.0;
-constexpr int kAngleSamplesToAverage = 127;
+//constexpr double kAngleTolerance = 0.25 / 360.0;
+constexpr double kAngleDistancePerPulse = 360.0 / 1000.0;
+//constexpr int kAngleSamplesToAverage = 127;
 
 SwerveDrive::SwerveDrive() {
   DBG;
@@ -489,6 +542,16 @@ SwerveDrive::SwerveDrive() {
   m_wheel[RL] = new Wheel(-l,-w, p);
   m_wheel[FR] = new Wheel( l, w, p);
   m_wheel[RR] = new Wheel(-l, w, p);
+
+  m_wheel[FL]->SteerOutputScale(FL_STEER_MOTOR_SCALE);
+  m_wheel[RL]->SteerOutputScale(RL_STEER_MOTOR_SCALE);
+  m_wheel[FR]->SteerOutputScale(FR_STEER_MOTOR_SCALE);
+  m_wheel[RR]->SteerOutputScale(RR_STEER_MOTOR_SCALE);
+
+  m_wheel[FL]->DriveOutputScale(FL_DRIVE_MOTOR_SCALE);
+  m_wheel[RL]->DriveOutputScale(RL_DRIVE_MOTOR_SCALE);
+  m_wheel[FR]->DriveOutputScale(FR_DRIVE_MOTOR_SCALE);
+  m_wheel[RR]->DriveOutputScale(RR_DRIVE_MOTOR_SCALE);
 
     // Inner objects to support PIDController (needs PIDSource and PIDOutput)
     class AnglePIDSource : public PIDSource {
@@ -584,6 +647,15 @@ void SwerveDrive::DriveCartesian(double north,
                                  double yaw,
                                  double gyro) {
 
+#if 1
+DBG;
+m_angle[0]->SetRaw(1000);
+DBGv(m_angle[0]->GetRaw());
+DBGf(m_angle[0]->GetDistance());
+
+m_wheel[0]->DriveOutputScale(-0.5);
+m_wheel[0]->SteerOutputScale(-0.5);
+#else
   DBGST("north %f east %f yaw %.1f gyro %.1f", north, east, yaw, gyro);
   // Compensate for gyro angle. Positive rotation is counter-clockwise
   RotateVector(north, east, gyro);
@@ -611,6 +683,7 @@ void SwerveDrive::DriveCartesian(double north,
 
   // Reset watchdog timer
   m_safetyHelper.Feed();
+#endif
 }
 
 /*
