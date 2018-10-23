@@ -53,12 +53,13 @@
  * Add reverse kinematics for calculation of location
  * Add (non-linear) scaling on speed inputs
  * Add (non-linear) scaling on rotation inputs
- * Add local scaling on speed outputs
- * Add local scaling on rotation outputs
- * Add global scaling on speed outputs
- * Add global scaling on rotation outputs
- * Add encoder inversion
+ * (done) Add local scaling on speed outputs
+ * (done) Add local scaling on rotation outputs
+ * (done) Add global scaling on speed outputs
+ * (done) Add global scaling on rotation outputs
+ * (done) Add encoder inversion and type
  * (done) Enable motor safety? where?
+ * Reset previous angle with drive = 0
  * Test mode
  *  Single wheel direction
  *  Single wheel speed
@@ -491,6 +492,17 @@ constexpr bool RL_STEER_ENCODER_REVERSED = false;
 constexpr bool FR_STEER_ENCODER_REVERSED = false;
 constexpr bool RR_STEER_ENCODER_REVERSED = false;
 
+constexpr CounterBase::EncodingType \
+  STEER_ENCODER_COMMON_TYPE = CounterBase::EncodingType::k4X;
+constexpr CounterBase::EncodingType \
+  FL_STEER_ENCODER_TYPE = STEER_ENCODER_COMMON_TYPE;
+constexpr CounterBase::EncodingType \
+  RL_STEER_ENCODER_TYPE = STEER_ENCODER_COMMON_TYPE;
+constexpr CounterBase::EncodingType \
+  FR_STEER_ENCODER_TYPE = STEER_ENCODER_COMMON_TYPE;
+constexpr CounterBase::EncodingType \
+  RR_STEER_ENCODER_TYPE = STEER_ENCODER_COMMON_TYPE;
+
 constexpr double BASE_WIDTH = 24.5;
 constexpr double BASE_LENGTH = 36.5;
 
@@ -519,10 +531,14 @@ SwerveDrive::SwerveDrive() {
   m_steer[RR] = new WPI_TalonSRX(RR_STEER_MOTOR_ID);
 
   // Create encoders
-  m_angle[FL] = new Encoder(FL_STEER_ENCODER_CHAN_A, FL_STEER_ENCODER_CHAN_B);
-  m_angle[RL] = new Encoder(RL_STEER_ENCODER_CHAN_A, RL_STEER_ENCODER_CHAN_B);
-  m_angle[FR] = new Encoder(FR_STEER_ENCODER_CHAN_A, FR_STEER_ENCODER_CHAN_B);
-  m_angle[RR] = new Encoder(RR_STEER_ENCODER_CHAN_A, RR_STEER_ENCODER_CHAN_B);
+  m_angle[FL] = new Encoder(FL_STEER_ENCODER_CHAN_A,   FL_STEER_ENCODER_CHAN_B,
+                            FL_STEER_ENCODER_REVERSED, FL_STEER_ENCODER_TYPE);
+  m_angle[RL] = new Encoder(RL_STEER_ENCODER_CHAN_A,   RL_STEER_ENCODER_CHAN_B,
+                            RL_STEER_ENCODER_REVERSED, RL_STEER_ENCODER_TYPE);
+  m_angle[FR] = new Encoder(FR_STEER_ENCODER_CHAN_A,   FR_STEER_ENCODER_CHAN_B,
+                            FR_STEER_ENCODER_REVERSED, FR_STEER_ENCODER_TYPE);
+  m_angle[RR] = new Encoder(RR_STEER_ENCODER_CHAN_A,   RR_STEER_ENCODER_CHAN_B,
+                            RR_STEER_ENCODER_REVERSED, RR_STEER_ENCODER_TYPE);
 
   m_distance[FL] = nullptr; // = new Encoder(FL_DRIVE_ENCODER_CHAN_A, FL_DRIVE_ENCODER_CHAN_B);
   m_distance[RL] = nullptr; // = new Encoder(RL_DRIVE_ENCODER_CHAN_A, RL_DRIVE_ENCODER_CHAN_B);
