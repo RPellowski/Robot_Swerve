@@ -639,6 +639,11 @@ SwerveDrive::~SwerveDrive() {
   DBG;
   for (size_t i = 0; i < kWheels; i++) {
     delete m_wheel[i];
+    delete m_pid[i];
+    delete m_steer[i];
+    delete m_drive[i];
+    delete m_angle[i];
+    if (m_distance[i] != nullptr) delete m_distance[i];
   }
 }
 

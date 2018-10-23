@@ -1291,6 +1291,7 @@ int main()
   //s->DriveCartesian(1.,1.,0.,45.);
   //s->DriveCartesian(-1.,0.,0.,0.);
   s->DriveCartesian(1.,1.,1.,0.);
+  //delete(s);
 #if 0
 int counter = 0;
 while (not drive_done && counter < 10) {
