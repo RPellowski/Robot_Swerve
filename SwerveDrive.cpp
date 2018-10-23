@@ -447,6 +447,8 @@ constexpr int RL_STEER_MOTOR_ID = 6;
 constexpr int FR_STEER_MOTOR_ID = 7;
 constexpr int RR_STEER_MOTOR_ID = 8;
 
+// Individual motor scaling is for fine-tuning, transmission matching or
+// motor inversion
 constexpr double FL_DRIVE_MOTOR_SCALE = 1.0;
 constexpr double RL_DRIVE_MOTOR_SCALE = 1.0;
 constexpr double FR_DRIVE_MOTOR_SCALE = 1.0;
@@ -457,7 +459,11 @@ constexpr double RL_STEER_MOTOR_SCALE = 1.0;
 constexpr double FR_STEER_MOTOR_SCALE = 1.0;
 constexpr double RR_STEER_MOTOR_SCALE = 1.0;
 
+// The following, for example, could be set at 0.5 for half speed for demos
+// or negative for inverting all motors
 constexpr double DRIVE_MOTORS_SCALE = 1.0;
+// The following would always be 1.0 (or -1.0 for inverting all motors)
+// Any other tuning could be done with PID
 constexpr double STEER_MOTORS_SCALE = 1.0;
 
 //constexpr int FL_DRIVE_ENCODER_CHAN_A = 21;
@@ -485,8 +491,8 @@ constexpr bool RL_STEER_ENCODER_REVERSED = false;
 constexpr bool FR_STEER_ENCODER_REVERSED = false;
 constexpr bool RR_STEER_ENCODER_REVERSED = false;
 
-constexpr double BASE_WIDTH = 24.;
-constexpr double BASE_LENGTH = 36.;
+constexpr double BASE_WIDTH = 24.5;
+constexpr double BASE_LENGTH = 36.5;
 
 constexpr double kAngleP = 1.;
 constexpr double kAngleI = 0.;
@@ -565,7 +571,7 @@ SwerveDrive::SwerveDrive() {
       }
       double PIDGet() {
         DBG;
-        m_swerve->GetAngle(m_index);
+        return m_swerve->GetAngle(m_index);
       }
       void SetPIDSourceType(PIDSourceType pidSource) {
         DBG;
@@ -583,7 +589,7 @@ SwerveDrive::SwerveDrive() {
         m_index = index;
       }
       void PIDWrite(double d) {
-        DBG;
+        DBGf(d);
         m_swerve->SetAngle(m_index, d);
       }
     };
@@ -647,15 +653,6 @@ void SwerveDrive::DriveCartesian(double north,
                                  double yaw,
                                  double gyro) {
 
-#if 1
-DBG;
-m_angle[0]->SetRaw(1000);
-DBGv(m_angle[0]->GetRaw());
-DBGf(m_angle[0]->GetDistance());
-
-m_wheel[0]->DriveOutputScale(-0.5);
-m_wheel[0]->SteerOutputScale(-0.5);
-#else
   DBGST("north %f east %f yaw %.1f gyro %.1f", north, east, yaw, gyro);
   // Compensate for gyro angle. Positive rotation is counter-clockwise
   RotateVector(north, east, gyro);
@@ -678,12 +675,11 @@ m_wheel[0]->SteerOutputScale(-0.5);
   // If every wheel is within tolerance, then ...
   // Set drive motor values
   for (size_t i = 0; i < kWheels; i++) {
-    m_drive[i]->Set(m_wheel[i]->Speed());
+    m_drive[i]->Set(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
   }
 
   // Reset watchdog timer
   m_safetyHelper.Feed();
-#endif
 }
 
 /*
@@ -797,7 +793,7 @@ double SwerveDrive::GetAngle(int index) {
 void SwerveDrive::SetAngle(int index, double angle) {
   DBGST("index %d angle" f1f, index, angle);
   if (m_steer[index] != nullptr) {
-    m_steer[index]->Set(angle);
+    m_steer[index]->Set(angle * STEER_MOTORS_SCALE);
   }
 }
 
