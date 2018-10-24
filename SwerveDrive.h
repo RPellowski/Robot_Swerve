@@ -67,6 +67,8 @@ class SwerveDrive : public RobotDriveBase {
  private:
   SpeedController* m_drive[kWheels];
   SpeedController* m_steer[kWheels];
+  PIDSource* m_pidIn[kWheels];
+  PIDOutput* m_pidOut[kWheels];
   PIDController* m_pid[kWheels];
   Encoder* m_angle[kWheels];
   Encoder* m_distance[kWheels];

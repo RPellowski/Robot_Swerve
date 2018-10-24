@@ -154,7 +154,9 @@ Wheel::Wheel(double north, double east, double period)
     m_speed(0.),
     m_angle(0.),
     m_speed_prev(0.),
-    m_angle_prev(0.) {
+    m_angle_prev(0.),
+    m_steer_output_scale(1.),
+    m_drive_output_scale(1.) {
   DBGST("north %f east %f", m_north, m_east);
 };
 
@@ -612,9 +614,9 @@ SwerveDrive::SwerveDrive() {
 
   // Create PID controllers
   for (size_t i = 0; i < kWheels; i++) {
-    m_pid[i] = new PIDController(m_angleP, m_angleI, m_angleD,
-                                 new AnglePIDSource(this, i),
-                                 new AnglePIDOutput(this, i));
+    m_pidIn[i] = new AnglePIDSource(this, i);
+    m_pidOut[i] = new AnglePIDOutput(this, i);
+    m_pid[i] = new PIDController(m_angleP, m_angleI, m_angleD, m_pidIn[i], m_pidOut[i]);
     m_pid[i]->SetContinuous();
     m_pid[i]->SetInputRange(-180, 180);
     m_pid[i]->SetOutputRange(-1, 1);
@@ -639,7 +641,10 @@ SwerveDrive::~SwerveDrive() {
   DBG;
   for (size_t i = 0; i < kWheels; i++) {
     delete m_wheel[i];
+    m_pid[i]->Disable();
     delete m_pid[i];
+    delete m_pidIn[i];
+    delete m_pidOut[i];
     delete m_steer[i];
     delete m_drive[i];
     delete m_angle[i];
@@ -834,7 +839,7 @@ void SwerveDrive::SetAngle(int index, double angle) {
  * Based on RobotDrive version
  */
 void SwerveDrive::RotateVector(double& x, double& y, double angle) {
-  DBGST("IN  x %f y %f (%.1f) angle %.1f",
+  DBGST("IN  x %f y %f theta %.1f angle %.1f",
         x, y, degrees(std::atan2(y, x)), angle);
   double r = radians(angle);
   double cosA = std::cos(r);

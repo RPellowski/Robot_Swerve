@@ -17,19 +17,21 @@
 #include <stdio.h>
 #define DBG      DBGST(" ")
 #define DBGz(a)  DBGST("%s",(a))
+std::regex re1("\\([^\\)]*\\)");
+std::regex re2("(.*)::(.*)");
+std::regex re3("(.*)[ :]");
+std::regex re4(".*::(?!.*::)");
+//#define DBGST(a,...)
+// Note: valgrind reports memory leaks with regex_replace() and basename()
 #define DBGST(a,...) \
   do { \
     std::string _f,_fclss,_fmeth;    \
-    std::regex re1("\\([^\\)]*\\)"); \
-    std::regex re2("(.*)::(.*)");    \
-    std::regex re3("(.*)[ :]");      \
-    std::regex re4(".*::(?!.*::)");  \
     _f = regex_replace(__PRETTY_FUNCTION__,    re1, "");   \
     _fclss = regex_replace(_f,                 re2, "$1"); \
     _fclss = regex_replace(_fclss,             re3, "");   \
     _fmeth = _fclss + "::" + regex_replace(_f, re4, "");   \
     fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",     \
-      __LINE__, basename((char *)__FILE__),                \
+     __LINE__, basename((char *)__FILE__),                 \
      _fmeth.c_str(), ##__VA_ARGS__);                       \
   } while (0)
 #define f1f " %.6f "
@@ -151,7 +153,7 @@ PIDOutput::~PIDOutput() { DBG; }
 // -----------------------------------------------------------------
 class SpeedController : public PIDOutput {
  public:
-  virtual ~SpeedController() = default;
+  virtual ~SpeedController();
   virtual void Set(double speed) = 0;
   virtual double Get() const = 0;
   virtual void SetInverted(bool isInverted) = 0;
@@ -159,6 +161,7 @@ class SpeedController : public PIDOutput {
   virtual void Disable() = 0;
   virtual void StopMotor() = 0;
 };
+SpeedController::~SpeedController() { DBG; }
 // -----------------------------------------------------------------
 struct Timer {
   static uint32_t GetFPGATimestamp();
@@ -382,6 +385,7 @@ class LinearDigitalFilter : public Filter {
  public:
   LinearDigitalFilter(PIDSource& source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains);
   LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains);
+  ~LinearDigitalFilter();
   static LinearDigitalFilter MovingAverage(std::shared_ptr<PIDSource> source, int taps);
   double Get() const override;
   void Reset() override;
@@ -395,6 +399,7 @@ LinearDigitalFilter::LinearDigitalFilter(PIDSource& source, wpi::ArrayRef<double
 LinearDigitalFilter::LinearDigitalFilter(std::shared_ptr<PIDSource> source, wpi::ArrayRef<double> ffGains, wpi::ArrayRef<double> fbGains)
     : Filter(source),
       m_val(0) { DBG; }
+LinearDigitalFilter::~LinearDigitalFilter() { DBG; }
 LinearDigitalFilter LinearDigitalFilter::MovingAverage(
     std::shared_ptr<PIDSource> source, int taps) {
   DBG;
@@ -411,7 +416,7 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
  public:
   PIDBase(double p, double i, double d, PIDSource& source, PIDOutput& output);
   PIDBase(double p, double i, double d, double f, PIDSource& source, PIDOutput& output);
-  ~PIDBase() override = default;
+  ~PIDBase() override;
   PIDBase(const PIDBase&) = delete;
   PIDBase& operator=(const PIDBase) = delete;
   //virtual double Get() const;
@@ -503,6 +508,7 @@ PIDBase::PIDBase(double Kp, double Ki, double Kd, double Kf, PIDSource& source, 
   instances++;
   SetName("PIDController", instances);
 }
+PIDBase::~PIDBase() { DBG; }
 /*
 double PIDBase::Get() const {
   return m_result;
@@ -1275,14 +1281,14 @@ int main()
 #if 0
   test_wheel();
 #else
-  WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
-  WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
-  WPI_TalonSRX *m3 = new WPI_TalonSRX(3);
-  WPI_TalonSRX *m4 = new WPI_TalonSRX(4);
-  WPI_TalonSRX *m5 = new WPI_TalonSRX(5);
-  WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
-  WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
-  WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
+//  WPI_TalonSRX *m1 = new WPI_TalonSRX(1);
+//  WPI_TalonSRX *m2 = new WPI_TalonSRX(2);
+//  WPI_TalonSRX *m3 = new WPI_TalonSRX(3);
+//  WPI_TalonSRX *m4 = new WPI_TalonSRX(4);
+//  WPI_TalonSRX *m5 = new WPI_TalonSRX(5);
+//  WPI_TalonSRX *m6 = new WPI_TalonSRX(6);
+//  WPI_TalonSRX *m7 = new WPI_TalonSRX(7);
+//  WPI_TalonSRX *m8 = new WPI_TalonSRX(8);
   SwerveDrive *s = new SwerveDrive(); //*m1,*m2,*m3,*m4,*m5,*m6,*m7,*m8,24.,30.);
   //s->DriveCartesian(1.,1.,90.,90.);
   //s->DriveCartesian(0.,0.,1.,0.);
@@ -1291,7 +1297,7 @@ int main()
   //s->DriveCartesian(1.,1.,0.,45.);
   //s->DriveCartesian(-1.,0.,0.,0.);
   s->DriveCartesian(1.,1.,1.,0.);
-  //delete(s);
+  delete(s);
 #if 0
 int counter = 0;
 while (not drive_done && counter < 10) {
@@ -1330,4 +1336,3 @@ bool drive_done = false;
 #endif
 }
 #endif // FOOBAR
-
