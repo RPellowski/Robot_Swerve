@@ -21,7 +21,7 @@ std::regex re1("\\([^\\)]*\\)");
 std::regex re2("(.*)::(.*)");
 std::regex re3("(.*)[ :]");
 std::regex re4(".*::(?!.*::)");
-//#define DBGST(a,...)
+#define xDBGST(a,...) do{printf("%5d %-20.20s %-50.50s : " a "\n",__LINE__,__FILE__,__PRETTY_FUNCTION__,##__VA_ARGS__);}while(0)
 // Note: valgrind reports memory leaks with regex_replace() and basename()
 #define DBGST(a,...) \
   do { \

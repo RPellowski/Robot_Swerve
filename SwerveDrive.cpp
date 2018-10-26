@@ -120,13 +120,13 @@ class Wheel {
   void ApplyAckermann(double north, double corDistance, double omega);
 
   double Speed();
-  double Speed(double speed);
+  void Speed(double speed);
   double Angle();
-  double Angle(double angle);
+  void Angle(double angle);
   double SteerOutputScale();
-  double SteerOutputScale(double steer_output_scale);
+  void SteerOutputScale(double steer_output_scale);
   double DriveOutputScale();
-  double DriveOutputScale(double drive_output_scale);
+  void DriveOutputScale(double drive_output_scale);
  private:
   double m_north;
   double m_east;
@@ -171,7 +171,7 @@ Wheel::~Wheel() { DBG; };
 double Wheel::AngleModulus(double a) {
   double ret = a;
   while (ret <= 180.) { ret += 360.; }
-  while (ret > 180.) { ret -= 360.; }
+  while (ret  > 180.) { ret -= 360.; }
   return ret;
 }
 
@@ -390,10 +390,9 @@ double Wheel::Speed() {
 };
 
 /* Setter for speed */
-double Wheel::Speed(double speed) {
+void Wheel::Speed(double speed) {
   DBGf2(m_speed, speed);
   m_speed = speed;
-  return m_speed;
 };
 
 /* Getter for angle */
@@ -403,10 +402,9 @@ double Wheel::Angle() {
 };
 
 /* Setter for angle */
-double Wheel::Angle(double angle) {
+void Wheel::Angle(double angle) {
   DBGf2(m_angle, angle);
   m_angle = angle;
-  return m_angle;
 };
 
 /* Getter for steer_output_scale */
@@ -416,10 +414,9 @@ double Wheel::SteerOutputScale() {
 };
 
 /* Setter for steer_output_scale */
-double Wheel::SteerOutputScale(double steer_output_scale) {
+void Wheel::SteerOutputScale(double steer_output_scale) {
   DBGf2(m_steer_output_scale, steer_output_scale);
   m_steer_output_scale = steer_output_scale;
-  return m_steer_output_scale;
 };
 
 /* Getter for drive_output_scale */
@@ -429,10 +426,9 @@ double Wheel::DriveOutputScale() {
 };
 
 /* Setter for drive_output_scale */
-double Wheel::DriveOutputScale(double drive_output_scale) {
+void Wheel::DriveOutputScale(double drive_output_scale) {
   DBGf2(m_drive_output_scale, drive_output_scale);
   m_drive_output_scale = drive_output_scale;
-  return m_drive_output_scale;
 };
 
 /* ======================================================================== *
@@ -848,6 +844,6 @@ void SwerveDrive::RotateVector(double& x, double& y, double angle) {
   double yOut = x * sinA + y * cosA;
   x = xOut;
   y = yOut;
-  DBGST("OUT x %f y %f (%.1f)", x, y, degrees(std::atan2(y, x)));
+  DBGST("OUT x %f y %f angle %.1f", x, y, degrees(std::atan2(y, x)));
 }
 
