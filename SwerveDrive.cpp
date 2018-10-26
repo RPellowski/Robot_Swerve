@@ -698,6 +698,52 @@ void SwerveDrive::DriveCartesian(double north,
   // Scale wheel speeds so that a magnitude of 1. is max
   NormalizeSpeeds();
 
+#if 0
+  /*
+   * Take extra care to account for real-world conditions
+   *   - prevent unnecessary steering movement
+   *   - avoid friction wear on wheels that are not optimally set
+   *
+   * These are the steps taken
+   *   1. Get final drive speed settings, after all intended scaling transforms
+   *   2. If any drive speeds are zero, reset corresponding angle to the
+   *      previous one
+   *   3. Set steer wheels to their setpoints
+   *   4. If any steer wheel is not within its setpoint tolerance, defer all
+   *      drive motor settings to the next time this method is called
+   *   5. With all conditions satisfied, set the drive motor speeds
+   */
+  double driveOut[kWheels];
+  for (size_t i = 0; i < kWheels; i++) {
+    driveOut[i] = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
+  }
+
+  // Set steering motor angles first
+  constexpr double deadband = 0.1;
+  for (size_t i = 0; i < kWheels; i++) {
+    if ((std::abs(driveOut[i]) > deadband) {
+      m_wheel[i]->ResetAngle();
+    }
+    m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
+  }
+
+  // Verify that wheels are accurately positioned
+  constexpr double steerTolerance = 0.1;
+  bool withinTolerance = true;
+  for (size_t i = 0; i < kWheels; i++) {
+    if ((std::abs() > ) {
+      withinTolerance = false;
+    }
+  }
+
+  // If every wheel is within tolerance, then ...
+  // Set drive motor values
+  if () {
+    for (size_t i = 0; i < kWheels; i++) {
+      m_drive[i]->Set(driveOut[i]);
+    }
+  }
+#else
   // Set steering motor angles first
   for (size_t i = 0; i < kWheels; i++) {
     m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
@@ -710,6 +756,7 @@ void SwerveDrive::DriveCartesian(double north,
     double d = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
     m_drive[i]->Set(d);
   }
+#endif
 
   // Reset watchdog timer
   m_safetyHelper.Feed();
