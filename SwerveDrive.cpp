@@ -701,44 +701,51 @@ void SwerveDrive::DriveCartesian(double north,
 #if 0
   /*
    * Take extra care to account for real-world conditions
-   *   - prevent unnecessary steering movement
-   *   - avoid friction wear on wheels that are not optimally set
+   *   - prevent unnecessary steering movement if not driving
+   *   - minimize friction wear on wheels not within steering tolerance
    *
    * These are the steps taken
-   *   1. Get final drive speed settings, after all intended scaling transforms
+   *   1. Get final drive speed settings, after all applied scaling transforms
    *   2. If any drive speeds are zero, reset corresponding angle to the
    *      previous one
-   *   3. Set steer wheels to their setpoints
-   *   4. If any steer wheel is not within its setpoint tolerance, defer all
+   *   3. Set steer wheels to their next setpoints
+   *   4. Measure current steering angles
+   *   5. If any steer wheel is not within its setpoint tolerance, defer all
    *      drive motor settings to the next time this method is called
-   *   5. With all conditions satisfied, set the drive motor speeds
+   *   6. With all conditions satisfied, set the drive motor speeds
    */
+  constexpr double deadband = 0.1;
   double driveOut[kWheels];
   for (size_t i = 0; i < kWheels; i++) {
     driveOut[i] = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
+    if ((std::abs(driveOut[i]) <= deadband) {
+      driveOut[i] = 0;
+    }
   }
 
   // Set steering motor angles first
-  constexpr double deadband = 0.1;
   for (size_t i = 0; i < kWheels; i++) {
-    if ((std::abs(driveOut[i]) > deadband) {
+    if (driveOut[i] == 0) {
       m_wheel[i]->ResetAngle();
     }
     m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
   }
 
   // Verify that wheels are accurately positioned
-  constexpr double steerTolerance = 0.1;
-  bool withinTolerance = true;
+  constexpr double steer_tolerance = 5;
+  bool within_tolerance = true;
   for (size_t i = 0; i < kWheels; i++) {
-    if ((std::abs() > ) {
-      withinTolerance = false;
+    // TBD: account for discontinuity
+    double currentAngle = GetAngle(i);
+    m_wheel[i]->Angle();
+    if ((std::abs() > steer_tolerance) {
+      within_tolerance = false;
     }
   }
 
   // If every wheel is within tolerance, then ...
   // Set drive motor values
-  if () {
+  if (within_tolerance) {
     for (size_t i = 0; i < kWheels; i++) {
       m_drive[i]->Set(driveOut[i]);
     }
