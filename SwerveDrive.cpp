@@ -446,6 +446,12 @@ constexpr int RL_STEER_MOTOR_ID = 6;
 constexpr int FR_STEER_MOTOR_ID = 7;
 constexpr int RR_STEER_MOTOR_ID = 8;
 
+// Temporary scaling until non-linear mapping developed
+#define MapDriveIn(_d) (_d)
+#define MapAngleIn(_d) (_d)
+#define MapDriveOut(_d) (_d)
+#define MapAngleOut(_d) (_d)
+
 // Individual motor scaling is for fine-tuning, transmission matching or
 // motor inversion
 constexpr double FL_DRIVE_MOTOR_SCALE = 1.0;
@@ -676,6 +682,10 @@ void SwerveDrive::DriveCartesian(double north,
                                  double gyro) {
 
   DBGST("north %f east %f yaw %.1f gyro %.1f", north, east, yaw, gyro);
+  north = MapDriveIn(north);
+  east = MapDriveIn(east);
+  gyro = MapAngleIn(gyro);
+
   // Compensate for gyro angle. Positive rotation is counter-clockwise
   RotateVector(north, east, gyro);
 
@@ -697,7 +707,8 @@ void SwerveDrive::DriveCartesian(double north,
   // If every wheel is within tolerance, then ...
   // Set drive motor values
   for (size_t i = 0; i < kWheels; i++) {
-    m_drive[i]->Set(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
+    double d = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
+    m_drive[i]->Set(d);
   }
 
   // Reset watchdog timer
@@ -815,7 +826,8 @@ double SwerveDrive::GetAngle(int index) {
 void SwerveDrive::SetAngle(int index, double angle) {
   DBGST("index %d angle" f1f, index, angle);
   if (m_steer[index] != nullptr) {
-    m_steer[index]->Set(angle * STEER_MOTORS_SCALE);
+    double d = MapAngleOut(angle * STEER_MOTORS_SCALE);
+    m_steer[index]->Set(d);
   }
 }
 
