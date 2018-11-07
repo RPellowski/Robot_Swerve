@@ -60,10 +60,19 @@
  * (done) Add encoder inversion and type
  * (done) Enable motor safety? where?
  * Reset previous angle with drive = 0
+ * Use velocity PID for steering
+ * Use velocity PID for drive
+ * Override PIDController::Calculate
+ * Use RTC in Calculate
+ * Send PID data to workstation
+ * Reverse Ackermann mode
+ * Tank drive mode
+ *
  * Test mode
  *  Single wheel direction
  *  Single wheel speed
  *  All wheels same direction
+ *  All wheels same speed
  * Autonomous
  *  Drive distance and/or rotation
  *  Drive around point with rotation
@@ -579,23 +588,40 @@ SwerveDrive::SwerveDrive() {
   m_wheel[FR]->DriveOutputScale(FR_DRIVE_MOTOR_SCALE);
   m_wheel[RR]->DriveOutputScale(RR_DRIVE_MOTOR_SCALE);
 
+#define noVELOCITY_PID
+
     // Inner objects to support PIDController (needs PIDSource and PIDOutput)
     class AnglePIDSource : public PIDSource {
      public:
       SwerveDrive* m_swerve;
       int m_index;
+#ifdef VELOCITY_PID
+      double m_prev;
+#endif
       AnglePIDSource(SwerveDrive* swerve, int index) : PIDSource() {
         DBGv(index);
         m_swerve = swerve;
         m_index = index;
+#ifdef VELOCITY_PID
+        m_pidSource = PIDSourceType::kRate;
+        m_prev = 0;
+#endif
       }
       double PIDGet() {
+#ifdef VELOCITY_PID
+        double next = m_swerve->GetAngle(m_index);
+        double rate = Wheel::AngleModulus(next - m_prev);
+        DBGf3(m_prev, next, rate);
+        m_prev = next;
+        return rate;
+#else
         DBG;
         return m_swerve->GetAngle(m_index);
+#endif
       }
       void SetPIDSourceType(PIDSourceType pidSource) {
         DBG;
-        // No-op - Prevent change from default of PIDSourceType.kDisplacement
+        // No-op - Prevent change from intended setting of kDisplacement or kRate
       }
     };
 
@@ -753,7 +779,19 @@ void SwerveDrive::DriveCartesian(double north,
 #else
   // Set steering motor angles first
   for (size_t i = 0; i < kWheels; i++) {
+#ifdef VELOCITY_PID
+    if (i == 0) {DBGon = true;}
+    DBGz("-------------------------------");
     m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
+    m_pid[i]->Calculate();
+    // Estimate degrees in 50 ms
+    int steerTravel = int(m_steer[i]->Get() * 2.0 / 360. * 4000);
+DBGv(steerTravel);
+    m_angle[i]->SetRaw(m_angle[i]->GetRaw()+steerTravel);
+    DBGon = false;
+#else
+    m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
+#endif
   }
 
   // Verify that wheels are accurately positioned

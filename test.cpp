@@ -23,8 +23,10 @@ std::regex re3("(.*)[ :]");
 std::regex re4(".*::(?!.*::)");
 #define xDBGST(a,...) do{printf("%5d %-20.20s %-50.50s : " a "\n",__LINE__,__FILE__,__PRETTY_FUNCTION__,##__VA_ARGS__);}while(0)
 // Note: valgrind reports memory leaks with regex_replace() and basename()
+bool DBGon = true;
 #define DBGST(a,...) \
   do { \
+if (DBGon) {\
     std::string _f,_fclss,_fmeth;    \
     _f = regex_replace(__PRETTY_FUNCTION__,    re1, "");   \
     _fclss = regex_replace(_f,                 re2, "$1"); \
@@ -33,6 +35,7 @@ std::regex re4(".*::(?!.*::)");
     fprintf(stdout, "%5d %-20.20s %-40.40s : " a "\n",     \
      __LINE__, basename((char *)__FILE__),                 \
      _fmeth.c_str(), ##__VA_ARGS__);                       \
+}\
   } while (0)
 #define f1f " %.6f "
 #define DBGv(a)        DBGST(#a " %d"                    , (a))
@@ -525,7 +528,8 @@ void PIDBase::SetInputRange(double minimumInput, double maximumInput) {
   }
   SetSetpoint(m_setpoint);
 }
-void PIDBase::SetOutputRange(double minimumOutput, double maximumOutput) { m_minimumOutput = minimumOutput; m_maximumOutput = maximumOutput; }
+void PIDBase::SetOutputRange(double minimumOutput, double maximumOutput) {
+  DBGf2(minimumOutput, maximumOutput); m_minimumOutput = minimumOutput; m_maximumOutput = maximumOutput; }
 void PIDBase::SetPID(double p, double i, double d) { DBG; { m_P = p; m_I = i; m_D = d; } }
 void PIDBase::SetPID(double p, double i, double d, double f) {  DBG; m_P = p; m_I = i; m_D = d; m_F = f; }
 void PIDBase::SetP(double p) { DBG;  m_P = p; }
@@ -552,7 +556,8 @@ void PIDBase::SetSetpoint(double setpoint) {
   }
 }
 double PIDBase::GetSetpoint() const { DBGf(m_setpoint); return m_setpoint; }
-double PIDBase::GetDeltaSetpoint() const { DBG; return (m_setpoint - m_prevSetpoint) /*/ m_setpointTimer.Get()*/ ; }
+double PIDBase::GetDeltaSetpoint() const { double rc = (m_setpoint - m_prevSetpoint) /*/ m_setpointTimer.Get()*/ ;
+  DBGf(rc); return rc; }
 /*
 double PIDBase::GetError() const { double setpoint = GetSetpoint(); { return GetContinuousError(setpoint - m_pidInput->PIDGet()); } }
 double PIDBase::GetAvgError() const { return GetError(); }
@@ -617,6 +622,8 @@ void PIDBase::Calculate() {
     double prevError;
     double error;
     double totalError;
+double Pterm,Iterm,Dterm,Fterm;
+Pterm=Iterm=Dterm=Fterm=0;
     {
       input = m_pidInput->PIDGet();
       pidSourceType = m_pidInput->GetPIDSourceType();
@@ -636,6 +643,11 @@ void PIDBase::Calculate() {
             clamp(totalError + error, minimumOutput / P, maximumOutput / P);
       }
       result = D * error + P * totalError + feedForward;
+Pterm = P * totalError;
+Iterm = 0;
+Dterm = D * error;
+Fterm = feedForward;
+DBGf4(Pterm, Iterm, Dterm, Fterm);
     } else {
       if (I != 0) {
         totalError =
@@ -643,6 +655,11 @@ void PIDBase::Calculate() {
       }
       result =
           P * error + I * totalError + D * (error - prevError) + feedForward;
+Pterm = P * error;
+Iterm = I * totalError;
+Dterm = D * (error - prevError);
+Fterm = feedForward;
+DBGf4(Pterm, Iterm, Dterm, Fterm);
     }
     result = clamp(result, minimumOutput, maximumOutput);
     {
@@ -658,15 +675,17 @@ void PIDBase::Calculate() {
   DBGf4(m_prevError, m_error, m_totalError, m_result);
 }
 double PIDBase::CalculateFeedForward() {
-  DBG;
+  double feedForward;
   if (m_pidInput->GetPIDSourceType() == PIDSourceType::kRate) {
-    return m_F * GetSetpoint();
+    feedForward = m_F * GetSetpoint();
   } else {
     double temp = m_F * GetDeltaSetpoint();
     m_prevSetpoint = m_setpoint;
     //m_setpointTimer.Reset();
-    return temp;
+    feedForward = temp;
   }
+  DBGf(feedForward);
+  return feedForward;
 }
 double PIDBase::GetContinuousError(double error) const {
   double rc = error;
@@ -1296,7 +1315,16 @@ int main()
   //s->DriveCartesian(1.,1.,0.,0.);
   //s->DriveCartesian(1.,1.,0.,45.);
   //s->DriveCartesian(-1.,0.,0.,0.);
+#ifdef VELOCITY_PID
+int counter = 0;
+while (counter < 140) {
   s->DriveCartesian(1.,1.,1.,0.);
+  counter++;
+  DBGz("==========");
+}
+#else
+  s->DriveCartesian(1.,1.,1.,0.);
+#endif
   delete(s);
 #if 0
 int counter = 0;
