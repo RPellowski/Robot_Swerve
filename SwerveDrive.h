@@ -59,6 +59,29 @@ class SwerveDrive : public RobotDriveBase {
                       double yaw,
                       double gyro = 0.0);
 
+  /**
+   * DriveAckermann method for Swerve platform.
+   *
+   * @param north  The robot's velocity along the forward X axis [-1.0..1.0].
+   * @param east   The robot's velocity along the right Y axis [-1.0..1.0].
+   */
+  void DriveAckermann(double north,
+                      double east);
+
+  /**
+   * DriveTank method for Swerve platform.
+   *
+   * This mode is weird- convert essentially a polar input into right and left
+   * speeds.
+   * Essentially a drop-in replacement but will have a different feel and
+   * resulting behavior.
+   *
+   * @param north  The robot's velocity along the forward X axis [-1.0..1.0].
+   * @param east   The robot's velocity along the right Y axis [-1.0..1.0].
+   */
+  void DriveTank(double north,
+                 double east);
+
   void StopMotor() override;
 
   void GetDescription(wpi::raw_ostream& desc) const override;

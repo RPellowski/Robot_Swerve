@@ -124,8 +124,8 @@ class Wheel {
 
   void ApplyTranslationAndRotation(double north, double east,
                                    double omega = 0);
-  static void CalculateAckermanCG(double north, double east, double cgNorth,
-                                  double& corDistance, double& omega);
+  static void CalculateAckermannCG(double north, double east, double cgNorth,
+                                   double& corDistance, double& omega);
   void ApplyAckermann(double north, double corDistance, double omega);
 
   double Speed();
@@ -286,7 +286,7 @@ void Wheel::ApplyTranslationAndRotation(double north, double east,
 };
 
 /*
- * CalculateAckermanCG
+ * CalculateAckermannCG
  *   Helper function - does not modify Wheel
  *
  * Given an input vector and the distance between rear axle and robot
@@ -316,8 +316,8 @@ void Wheel::ApplyTranslationAndRotation(double north, double east,
  *   omega - angular velocity around the Center of Rotation
  *
  */
-void Wheel::CalculateAckermanCG(double north, double east, double cgNorth,
-                                double& corDistance, double& omega) {
+void Wheel::CalculateAckermannCG(double north, double east, double cgNorth,
+                                 double& corDistance, double& omega) {
   constexpr double maxAngle = 45.;
   constexpr double minAngle = 0.25;
   double steerAngle;
@@ -805,6 +805,109 @@ DBGv(steerTravel);
 
   // Reset watchdog timer
   m_safetyHelper.Feed();
+}
+
+/*
+ * DriveAckermann
+ *   Set steer and drive motors to operate with front wheel steering
+ *
+ * Ackermann drive operation
+ *   Rear wheels are locked at 0 degrees
+ *   Given set of inputs, calculate
+ *     steering for the front wheels
+ *     speeds for all wheels
+ *
+ * Inputs
+ *   north - forward velocity setting
+ *   east - right velocity setting
+ *
+ * Intermediates
+ *   m_wheel[] - modify Wheel object representations with get and set logic
+ *
+ * Outputs
+ *   m_steer[] - apply steering motor settings from calculations
+ *   m_drive[] - apply drive motor settings from calculations
+ *
+ */
+void SwerveDrive::DriveAckermann(double north,
+                                 double east) {
+
+  DBGf2(north, east);
+  north = MapDriveIn(north);
+  east = MapDriveIn(east);
+#if 0
+  Wheel::CalculateAckermannCG(north, east, std::abs(l), distance, omega);
+  for (int i = 0; i < kWheels; i++) {
+    DBGz("---");
+    wheel[i]->ApplyAckermann(north, distance, omega);
+  }
+  // Perform calculations to get steer and drive settings
+  for (size_t i = 0; i < kWheels; i++) {
+    DBGz("---");
+    m_wheel[i]->ApplyTranslationAndRotation(north, east, yaw);
+  }
+
+  // Scale wheel speeds so that a magnitude of 1. is max
+  NormalizeSpeeds();
+
+  // Set steering motor angles first
+  for (size_t i = 0; i < kWheels; i++) {
+    m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
+  }
+
+  // Verify that wheels are accurately positioned
+  // If every wheel is within tolerance, then ...
+  // Set drive motor values
+  for (size_t i = 0; i < kWheels; i++) {
+    double d = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
+    m_drive[i]->Set(d);
+  }
+#endif
+}
+
+/*
+ * DriveTank
+ *   Set steer and drive motors to operate in tank mode
+ *
+ * Tank drive operation
+ *   All wheels are locked at 0 degrees
+ *   Given set of inputs, calculate
+ *     speeds for all wheels
+ *
+ * Inputs
+ *   north - forward velocity setting
+ *   east - right velocity setting
+ *
+ * Intermediates
+ *   m_wheel[] - modify Wheel object representations with get and set logic
+ *
+ * Outputs
+ *   m_steer[] - apply steering motor settings from calculations
+ *   m_drive[] - apply drive motor settings from calculations
+ *
+ */
+void SwerveDrive::DriveTank(double north,
+                            double east) {
+
+  DBGf2(north, east);
+  north = MapDriveIn(north);
+  east = MapDriveIn(east);
+#if 0
+  // Set m_wheel values
+
+  // Set steering motor angles first
+  for (size_t i = 0; i < kWheels; i++) {
+    m_pid[i]->SetSetpoint(0);
+  }
+
+  // Verify that wheels are accurately positioned
+  // If every wheel is within tolerance, then ...
+  // Set drive motor values
+  for (size_t i = 0; i < kWheels; i++) {
+    double d = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
+    m_drive[i]->Set(d);
+  }
+#endif
 }
 
 /*

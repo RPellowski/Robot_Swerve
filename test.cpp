@@ -1276,7 +1276,7 @@ void test_wheel() {
     double omega;
     double north = -1;
     double east = 1;
-    if (i==0) {Wheel::CalculateAckermanCG(north, east, std::abs(l),
+    if (i==0) {Wheel::CalculateAckermannCG(north, east, std::abs(l),
                distance, omega);}
     wheel[i]->ApplyAckermann(north, distance, omega);
     //wheel[i]->ApplyAckermann(1., -1.);
