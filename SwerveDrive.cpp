@@ -835,16 +835,14 @@ void SwerveDrive::DriveAckermann(double north,
   DBGf2(north, east);
   north = MapDriveIn(north);
   east = MapDriveIn(east);
-#if 0
-  Wheel::CalculateAckermannCG(north, east, std::abs(l), distance, omega);
-  for (int i = 0; i < kWheels; i++) {
-    DBGz("---");
-    wheel[i]->ApplyAckermann(north, distance, omega);
-  }
+  double distance;
+  double omega;
+
+  Wheel::CalculateAckermannCG(north, east, m_base_length / 2, distance, omega);
   // Perform calculations to get steer and drive settings
   for (size_t i = 0; i < kWheels; i++) {
     DBGz("---");
-    m_wheel[i]->ApplyTranslationAndRotation(north, east, yaw);
+    m_wheel[i]->ApplyAckermann(north, distance, omega);
   }
 
   // Scale wheel speeds so that a magnitude of 1. is max
@@ -862,7 +860,6 @@ void SwerveDrive::DriveAckermann(double north,
     double d = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
     m_drive[i]->Set(d);
   }
-#endif
 }
 
 /*

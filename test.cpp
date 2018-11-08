@@ -1323,7 +1323,9 @@ while (counter < 140) {
   DBGz("==========");
 }
 #else
-  s->DriveCartesian(1.,1.,1.,0.);
+DBG;
+  //s->DriveCartesian(1.,1.,1.,0.);
+  s->DriveAckermann(1.,1.);
 #endif
   delete(s);
 #if 0
