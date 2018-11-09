@@ -58,6 +58,10 @@ class SwerveDrive : public RobotDriveBase {
                       double east,
                       double yaw,
                       double gyro = 0.0);
+  /**
+   * SetMotors - common method to apply calculated settings to the motors
+   */
+  void SetMotors();
 
   /**
    * DriveAckermann method for Swerve platform.

@@ -721,6 +721,12 @@ void SwerveDrive::DriveCartesian(double north,
     m_wheel[i]->ApplyTranslationAndRotation(north, east, yaw);
   }
 
+  SetMotors();
+}
+
+void SwerveDrive::SetMotors() {
+  DBG;
+
   // Scale wheel speeds so that a magnitude of 1. is max
   NormalizeSpeeds();
 
@@ -845,21 +851,7 @@ void SwerveDrive::DriveAckermann(double north,
     m_wheel[i]->ApplyAckermann(north, distance, omega);
   }
 
-  // Scale wheel speeds so that a magnitude of 1. is max
-  NormalizeSpeeds();
-
-  // Set steering motor angles first
-  for (size_t i = 0; i < kWheels; i++) {
-    m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
-  }
-
-  // Verify that wheels are accurately positioned
-  // If every wheel is within tolerance, then ...
-  // Set drive motor values
-  for (size_t i = 0; i < kWheels; i++) {
-    double d = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
-    m_drive[i]->Set(d);
-  }
+  SetMotors();
 }
 
 /*
@@ -889,22 +881,8 @@ void SwerveDrive::DriveTank(double north,
   DBGf2(north, east);
   north = MapDriveIn(north);
   east = MapDriveIn(east);
-#if 0
-  // Set m_wheel values
 
-  // Set steering motor angles first
-  for (size_t i = 0; i < kWheels; i++) {
-    m_pid[i]->SetSetpoint(0);
-  }
-
-  // Verify that wheels are accurately positioned
-  // If every wheel is within tolerance, then ...
-  // Set drive motor values
-  for (size_t i = 0; i < kWheels; i++) {
-    double d = MapDriveOut(m_wheel[i]->Speed() * DRIVE_MOTORS_SCALE);
-    m_drive[i]->Set(d);
-  }
-#endif
+  SetMotors();
 }
 
 /*
