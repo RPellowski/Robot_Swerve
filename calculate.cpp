@@ -232,17 +232,29 @@ public:
  double m_Pout; // Output Position
  double m_Aout; // Output Acceleration
  double m_Jout; // Output Jerk
- TargetGenerator(double T1, double T2, double itp) {DBGf3(T1, T2, itp);
+ TargetGenerator(double T1, double T2, double itp) {
+  DBGf3(T1, T2, itp);
   m_kPff = 0.0; m_kVff = 0.0; m_kAff = 0.0; m_kJff = 0.0;
   m_T1 = T1; m_T2 = T2; m_itp = itp;
   m_FL1 = int(T1 / itp);
   m_FL2 = int(T2 / itp);
   };
  ~TargetGenerator() {DBG;};
- void Gains(double kPff, double kVff, double kAff, double kJff) {DBGf4(kPff, kVff, kAff, kJff);
+ void SetGains(double kPff, double kVff, double kAff, double kJff) {
+   DBGf4(kPff, kVff, kAff, kJff);
    m_kPff = kPff; m_kVff = kVff; m_kAff = kAff; m_kJff = kJff; };
- void Generate(double V, double P) {DBGf2(V,P); m_V = V; m_P = P;};
- void Calculate() {DBG;};
+ void Generate(double V, double P) {DBGf2(V,P);
+//create ring buffer
+//fill ring buffer
+   m_V = V; m_P = P;
+   };
+ void Calculate() {DBG;
+
+ m_Vout=
+ m_Pout=
+ m_Aout=
+ m_Jout=0;
+ };
 };
 
 /*
@@ -260,6 +272,6 @@ int main() {
   tg->Generate(10.0, 4.0);
   for (int i = 0; i < 10; i += 1) {
     tg->Calculate();
-    DBGf4( tg->m_Vout, tg->m_Pout, tg->m_Aout, tg->m_Jout);
+    DBGf4(tg->m_Vout, tg->m_Pout, tg->m_Aout, tg->m_Jout);
   }
 }
