@@ -67,6 +67,9 @@
  * Send PID data to workstation
  * Reverse Ackermann mode
  * Tank drive mode
+ * Initialize methods
+ *   ResetEncoders
+ *   SetLinearPower?
  *
  * Test mode
  *  Single wheel direction
