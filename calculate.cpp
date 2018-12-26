@@ -205,51 +205,90 @@ int calculate_forward() {
 */
 #endif // SKIP
 
+#define xDBG
 class TargetGenerator {
-/* Refs:
+/*
+ * Refs:
  *   https://www.chiefdelphi.com/forums/showthread.php?t=98358&page=2
  *   https://www.controleng.com/articles/the-velocity-of-pid/
  *   https://www.controleng.com/articles/feed-forwards-augment-pid-control/
+ *   https://en.wikipedia.org/wiki/Step_response
+ *
+ * Steps in the use of this object
+ *     1. Measure open loop operation on step input
+ *     2. Determine closed loop (feedback) parameters
+ *     3. Measure closed loop operation on step input
+ *     4. Determine feedforward parameters
+ *     repeat 2-4
  */
 public:
- // System defined parameters
- double m_kPff; // FeedForward Pos Gain
- double m_kVff; // FeedForward Vel Gain
- double m_kAff; // FeedForward Acc Gain
- double m_kJff; // FeedForward Jerk Gain
+ /*
+  * Measured robot system parameters
+  *  - Open loop (no control system in place)
+  *  - Robot system under test has final weight configuration
+  *  - Input a step function at full value to the robot
+  *  - Measure the robot response function (position, velocity) for the entire
+  *    range from 0 to full velocity
+  *  - Determine T1 and T2 from the plots (or calculate T1, and T2 = T1 / 2)
+  */
  double m_T1; // Time in ms for filter 1 (measured time to acc 0 to full vel)
  double m_T2; // Time in ms for filter 2 (jerk or time to increase acc to max)
+
+ // Sofware system loop time
  double m_itp; // Iteration time (loop time)
+
+ // Calculated from measured parameters
  int m_FL1; // Filter 1 length = T1/itp
  int m_FL2; // Filter 2 length = T2/idp
- // Setpoint defined parameters
+
+ // Dynamic setpoint defined parameters
  double m_V; // Target Velocity
  double m_P; // Target Position
  double m_T4; // Time in ms to get to destination
  int m_N; // Total number of inputs to filter
- // Output calculated parameters
+
+ // Dynamic generator output calculated parameters
  double m_Vout; // Output Velocity
  double m_Pout; // Output Position
  double m_Aout; // Output Acceleration
  double m_Jout; // Output Jerk
+
+ /*
+  * Feedforward control system tuning parameters
+  *   These are determined by measuring the step response of robot after
+  *   feedforward and feedback have been implemented as the control system.
+  *   Measure output of robot and compare to desired (generator) output.
+  *   Adjust the feedforward gains so that the difference between measured
+  *   and desired is small, resulting in feedback terms being minimized.
+  */
+ double m_kPff; // FeedForward Pos Gain
+ double m_kVff; // FeedForward Vel Gain
+ double m_kAff; // FeedForward Acc Gain
+ double m_kJff; // FeedForward Jerk Gain
+
  TargetGenerator(double T1, double T2, double itp) {
   DBGf3(T1, T2, itp);
   m_kPff = 0.0; m_kVff = 0.0; m_kAff = 0.0; m_kJff = 0.0;
   m_T1 = T1; m_T2 = T2; m_itp = itp;
   m_FL1 = int(T1 / itp);
   m_FL2 = int(T2 / itp);
+  m_N = m_FL1 + m_FL2;
+  //create ring buffer, length is FL1 + FL2
+  //set up
   };
  ~TargetGenerator() {DBG;};
  void SetGains(double kPff, double kVff, double kAff, double kJff) {
    DBGf4(kPff, kVff, kAff, kJff);
-   m_kPff = kPff; m_kVff = kVff; m_kAff = kAff; m_kJff = kJff; };
+   m_kPff = kPff; m_kVff = kVff; m_kAff = kAff; m_kJff = kJff;
+   };
  void Generate(double V, double P) {DBGf2(V,P);
-//create ring buffer
-//fill ring buffer
+//fill ring buffer with lookahead only to N
    m_V = V; m_P = P;
    };
- void Calculate() {DBG;
-
+ void Calculate() {xDBG;
+//shift ring buffer for f1 and f2
+//based on in/out, adjust sums (+in, -out)
+//calculate feedforward
  m_Vout=
  m_Pout=
  m_Aout=
@@ -266,7 +305,71 @@ public:
  * T2 = time to achieve full acceleration)
  * As the setpoint is updated, the filters are adjusted.
  */
+#define ff " %9.3f "
+#define PRd \
+do { \
+  printf(f1f "|", dval); \
+  for (int i = 0; i < d.size(); i += 1) { \
+    printf(f1f " ", d[i]); \
+  } \
+  printf("|" f1f "|", dsum); \
+  for (int i = 0; i < e.size(); i += 1) { \
+    printf(f1f " ", e[i]); \
+  } \
+  printf("|" f1f "|", esum); \
+  printf(ff, vel); \
+  printf(ff, pos); \
+  printf(ff, acc); \
+  printf(ff, jrk); \
+  printf("\n"); \
+} while(0)
+
+#define DSIZE 4
+#define ESIZE 2
+
 int main() {
+  DBG;
+  double vprog = 10;
+  double feed = 8;
+  double dval = 0;
+  double dsum = 0;
+  double esum = 0;
+  double vel = 0;
+  double pvel = 0;
+  double pos = 0;
+  double acc = 0;
+  double pacc = 0;
+  double jrk = 0;
+  double itp = 0.05;
+  std::deque<double> d;
+  std::deque<double> e;
+  for (int i = 0; i < DSIZE; i += 1) {
+    d.push_front(0);
+  }
+  for (int i = 0; i < ESIZE; i += 1) {
+    e.push_front(0);
+  }
+  PRd;
+  for (int i = 0; i < 16; i += 1) {
+    dval = std::max(0., std::min(feed, 1.));
+    feed -= dval;
+    d.push_front(dval);
+    dsum += dval - d.back();
+    d.pop_back();
+    e.push_front(dsum);
+    esum += dsum - e.back();
+    e.pop_back();
+    pvel = vel;
+    vel = esum / ESIZE / DSIZE * vprog;
+    pos += (pvel + vel) / 2 * itp;
+    pacc = acc;
+    acc = (vel - pvel) / itp;
+    jrk = (acc - pacc) / itp;
+    PRd;
+  }
+}
+
+int foo() {
   TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.25);
   DBG;
   tg->Generate(10.0, 4.0);
