@@ -246,6 +246,8 @@ public:
  double m_P; // Target Position
  double m_T4; // Time in ms to get to destination
  int m_N; // Total number of inputs to filter
+ std::deque<double> m_filter1; // FIR filter 1
+ std::deque<double> m_filter2; // FIR filter 2
 
  // Dynamic generator output calculated parameters
  double m_Vout; // Output Velocity
@@ -266,36 +268,103 @@ public:
  double m_kAff; // FeedForward Acc Gain
  double m_kJff; // FeedForward Jerk Gain
 
+double m_feed;
+double m_sign;
+double m_filterSum1;
+double m_filterSum2;
+
  TargetGenerator(double T1, double T2, double itp) {
   DBGf3(T1, T2, itp);
   m_kPff = 0.0; m_kVff = 0.0; m_kAff = 0.0; m_kJff = 0.0;
   m_T1 = T1; m_T2 = T2; m_itp = itp;
   m_FL1 = int(T1 / itp);
   m_FL2 = int(T2 / itp);
+
+  // Ring buffer will have a lookahead with length equal to the filters length
   m_N = m_FL1 + m_FL2;
-  //create ring buffer, length is FL1 + FL2
-  //set up
-  };
+
+  // Create filter 1
+  for (int i = 0; i < m_FL1; i += 1) {
+    m_filter1.push_front(0);
+  }
+
+  // Create filter 2
+  for (int i = 0; i < m_FL2; i += 1) {
+    m_filter2.push_front(0);
+  }
+
+//
+m_feed = 0;
+m_sign = 0;
+m_filterSum1 = 0;
+m_filterSum2 = 0;
+ };
  ~TargetGenerator() {DBG;};
  void SetGains(double kPff, double kVff, double kAff, double kJff) {
    DBGf4(kPff, kVff, kAff, kJff);
    m_kPff = kPff; m_kVff = kVff; m_kAff = kAff; m_kJff = kJff;
    };
- void Generate(double V, double P) {DBGf2(V,P);
-//fill ring buffer with lookahead only to N
+ void GenerateVelocity(double V) {DBGf(V);
+   m_V = std::abs(V);
+   m_feed = m_N;
+   m_sign = V < 0 ? -1 : 1;
+DBGf(m_V);
+DBGf(m_feed);
+DBGf(m_sign);
+   };
+ void GeneratePath(double V, double P) {DBGf2(V,P);
    m_V = V; m_P = P;
    };
+#define fff " %8.2f "
+#define fxf " %5.2f "
+#define PRg \
+do { \
+  printf(fxf "|", Vinc); \
+  for (int i = 0; i < m_filter1.size(); i += 1) { \
+    printf(fxf " ", m_filter1[i]); \
+  } \
+  printf("|" fxf "|", m_filterSum1); \
+  for (int i = 0; i < m_filter2.size(); i += 1) { \
+    printf(fxf " ", m_filter2[i]); \
+  } \
+  printf("|" fxf "|", m_filterSum2); \
+  printf(fff, m_Vout); \
+  printf(fff, m_Pout); \
+  printf(fff, m_Aout); \
+  printf(fff, m_Jout); \
+  printf(fff, m_feed); \
+  printf(fff, m_sign); \
+  printf("\n"); \
+} while(0)
+
  void Calculate() {xDBG;
-//shift ring buffer for f1 and f2
-//based on in/out, adjust sums (+in, -out)
-//calculate feedforward
- m_Vout=
- m_Pout=
- m_Aout=
- m_Jout=0;
+  double Vprev; // Previous Velocity
+  double Aprev; // Previous Acceleration
+  double Vinc;
+
+  // Shift ring buffer for filter 1
+  Vinc = std::max(0., std::min(m_feed, 1.));
+  m_feed -= Vinc;
+  Vinc *= m_sign;
+  m_filter1.push_front(Vinc);
+  m_filterSum1 += Vinc - m_filter1.back();
+  m_filter1.pop_back();
+
+  // Shift ring buffer for filter 2
+  m_filter2.push_front(m_filterSum1);
+  m_filterSum2 += m_filterSum1 - m_filter2.back();
+  m_filter2.pop_back();
+
+  // Calculate m_feedforward
+  Vprev = m_Vout;
+  m_Vout = m_filterSum2 / (double) m_FL1 / (double) m_FL2 * m_V;
+  m_Pout += (Vprev + m_Vout) / 2 * m_itp;
+  Aprev = m_Aout;
+  m_Aout = (m_Vout - Vprev) / m_itp;
+  m_Jout = (m_Aout - Aprev) / m_itp;
+PRg;
  };
 };
-
 /*
  * This simulation maintains a buffer of calculated values of position, velocity,
  * acceleration and jerk as a feedforward target generator. It is used in
@@ -329,6 +398,15 @@ do { \
 
 int main() {
   DBG;
+  TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.05);
+  tg->GenerateVelocity(1.0);
+  for (int i = 0; i < 20; i += 1) {
+    if (i == 8) {tg->GenerateVelocity(-1.0);}
+    tg->Calculate();
+  }
+}
+
+int bar() {
   double vprog = 10;
   double feed = 8;
   double dval = 0;
@@ -369,8 +447,9 @@ int main() {
   }
 }
 
+/*
 int foo() {
-  TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.25);
+  TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.05);
   DBG;
   tg->Generate(10.0, 4.0);
   for (int i = 0; i < 10; i += 1) {
@@ -378,3 +457,4 @@ int foo() {
     DBGf4(tg->m_Vout, tg->m_Pout, tg->m_Aout, tg->m_Jout);
   }
 }
+*/
