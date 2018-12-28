@@ -246,6 +246,8 @@ public:
  double m_P; // Target Position
  double m_T4; // Time in ms to get to destination
  int m_N; // Total number of inputs to filter
+
+ // Use deque- not as efficient as a ring buffer- replace when STL supports
  std::deque<double> m_filter1; // FIR filter 1
  std::deque<double> m_filter2; // FIR filter 2
 
@@ -268,11 +270,15 @@ public:
  double m_kAff; // FeedForward Acc Gain
  double m_kJff; // FeedForward Jerk Gain
 
-double m_feed;
-double m_sign;
-double m_filterSum1;
-double m_filterSum2;
+ int m_feeds;
+ double m_Vinc;
+ double m_filterSum1;
+ double m_filterSum2;
 
+ /*
+  * Constructor
+  *   Create the Generator object for data to be used in feedforward system
+  */
  TargetGenerator(double T1, double T2, double itp) {
   DBGf3(T1, T2, itp);
   m_kPff = 0.0; m_kVff = 0.0; m_kAff = 0.0; m_kJff = 0.0;
@@ -280,46 +286,50 @@ double m_filterSum2;
   m_FL1 = int(T1 / itp);
   m_FL2 = int(T2 / itp);
 
-  // Ring buffer will have a lookahead with length equal to the filters length
+  /*
+   * Filter ring buffer will have a lookahead with length equal to the sum of
+   * filter lengths
+   */
   m_N = m_FL1 + m_FL2;
 
-  // Create filter 1
+  // Create filter 1 with length FL1
   for (int i = 0; i < m_FL1; i += 1) {
     m_filter1.push_front(0);
   }
 
-  // Create filter 2
+  // Create filter 2 with length FL2
   for (int i = 0; i < m_FL2; i += 1) {
     m_filter2.push_front(0);
   }
 
-//
-m_feed = 0;
-m_sign = 0;
-m_filterSum1 = 0;
-m_filterSum2 = 0;
+  // Init additional persistent filter values
+  m_feeds = 0;
+  m_Vinc = 0;
+  m_filterSum1 = 0;
+  m_filterSum2 = 0;
  };
  ~TargetGenerator() {DBG;};
  void SetGains(double kPff, double kVff, double kAff, double kJff) {
-   DBGf4(kPff, kVff, kAff, kJff);
-   m_kPff = kPff; m_kVff = kVff; m_kAff = kAff; m_kJff = kJff;
-   };
+  DBGf4(kPff, kVff, kAff, kJff);
+  m_kPff = kPff; m_kVff = kVff; m_kAff = kAff; m_kJff = kJff;
+ };
  void GenerateVelocity(double V) {DBGf(V);
-   m_V = std::abs(V);
-   m_feed = m_N;
-   m_sign = V < 0 ? -1 : 1;
+  m_V = V;
+  m_feeds = m_N;
+  m_Vinc = m_V / (double) m_FL1 / (double) m_FL2;
 DBGf(m_V);
-DBGf(m_feed);
-DBGf(m_sign);
-   };
+DBGv(m_feeds);
+DBGf(m_Vinc);
+ };
  void GeneratePath(double V, double P) {DBGf2(V,P);
-   m_V = V; m_P = P;
-   };
+  m_V = V; m_P = P;
+ };
+
 #define fff " %8.2f "
 #define fxf " %5.2f "
 #define PRg \
 do { \
-  printf(fxf "|", Vinc); \
+  printf(fxf "|", m_Vinc); \
   for (int i = 0; i < m_filter1.size(); i += 1) { \
     printf(fxf " ", m_filter1[i]); \
   } \
@@ -332,39 +342,41 @@ do { \
   printf(fff, m_Pout); \
   printf(fff, m_Aout); \
   printf(fff, m_Jout); \
-  printf(fff, m_feed); \
-  printf(fff, m_sign); \
+  printf("%d", m_feeds); \
   printf("\n"); \
 } while(0)
 
  void Calculate() {xDBG;
-  double Vprev; // Previous Velocity
-  double Aprev; // Previous Acceleration
-  double Vinc;
+  double Vprev = m_Vout; // Previous Velocity
+  double Aprev = m_Aout; // Previous Acceleration
+  double Vinc = m_Vinc;
+
+  if (m_feeds > 0) {
+    m_feeds -= 1;
+  }
+  else {
+    Vinc = 0;
+  }
 
   // Shift ring buffer for filter 1
-  Vinc = std::max(0., std::min(m_feed, 1.));
-  m_feed -= Vinc;
-  Vinc *= m_sign;
-  m_filter1.push_front(Vinc);
   m_filterSum1 += Vinc - m_filter1.back();
+  m_filter1.push_front(Vinc);
   m_filter1.pop_back();
 
   // Shift ring buffer for filter 2
-  m_filter2.push_front(m_filterSum1);
   m_filterSum2 += m_filterSum1 - m_filter2.back();
+  m_filter2.push_front(m_filterSum1);
   m_filter2.pop_back();
 
-  // Calculate m_feedforward
-  Vprev = m_Vout;
-  m_Vout = m_filterSum2 / (double) m_FL1 / (double) m_FL2 * m_V;
+  // Calculate feedforward values
+  m_Vout = m_filterSum2;
   m_Pout += (Vprev + m_Vout) / 2 * m_itp;
-  Aprev = m_Aout;
   m_Aout = (m_Vout - Vprev) / m_itp;
   m_Jout = (m_Aout - Aprev) / m_itp;
 PRg;
  };
 };
+
 /*
  * This simulation maintains a buffer of calculated values of position, velocity,
  * acceleration and jerk as a feedforward target generator. It is used in
@@ -372,89 +384,17 @@ PRg;
  * The input value, the setpoint, is assumed to be far enough in the future to
  * clear out the two FIR filters (T1 = time to accelerate to full velocity +
  * T2 = time to achieve full acceleration)
- * As the setpoint is updated, the filters are adjusted.
+ * As the setpoint is updated, the inputs to filters are adjusted.
  */
-#define ff " %9.3f "
-#define PRd \
-do { \
-  printf(f1f "|", dval); \
-  for (int i = 0; i < d.size(); i += 1) { \
-    printf(f1f " ", d[i]); \
-  } \
-  printf("|" f1f "|", dsum); \
-  for (int i = 0; i < e.size(); i += 1) { \
-    printf(f1f " ", e[i]); \
-  } \
-  printf("|" f1f "|", esum); \
-  printf(ff, vel); \
-  printf(ff, pos); \
-  printf(ff, acc); \
-  printf(ff, jrk); \
-  printf("\n"); \
-} while(0)
-
-#define DSIZE 4
-#define ESIZE 2
 
 int main() {
   DBG;
   TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.05);
-  tg->GenerateVelocity(1.0);
+  tg->GenerateVelocity(10.0);
   for (int i = 0; i < 20; i += 1) {
-    if (i == 8) {tg->GenerateVelocity(-1.0);}
+    if (i == 8) {tg->GenerateVelocity(-10.0);}
+    if (i == 14) {tg->GenerateVelocity(-10.0);}
     tg->Calculate();
   }
 }
 
-int bar() {
-  double vprog = 10;
-  double feed = 8;
-  double dval = 0;
-  double dsum = 0;
-  double esum = 0;
-  double vel = 0;
-  double pvel = 0;
-  double pos = 0;
-  double acc = 0;
-  double pacc = 0;
-  double jrk = 0;
-  double itp = 0.05;
-  std::deque<double> d;
-  std::deque<double> e;
-  for (int i = 0; i < DSIZE; i += 1) {
-    d.push_front(0);
-  }
-  for (int i = 0; i < ESIZE; i += 1) {
-    e.push_front(0);
-  }
-  PRd;
-  for (int i = 0; i < 16; i += 1) {
-    dval = std::max(0., std::min(feed, 1.));
-    feed -= dval;
-    d.push_front(dval);
-    dsum += dval - d.back();
-    d.pop_back();
-    e.push_front(dsum);
-    esum += dsum - e.back();
-    e.pop_back();
-    pvel = vel;
-    vel = esum / ESIZE / DSIZE * vprog;
-    pos += (pvel + vel) / 2 * itp;
-    pacc = acc;
-    acc = (vel - pvel) / itp;
-    jrk = (acc - pacc) / itp;
-    PRd;
-  }
-}
-
-/*
-int foo() {
-  TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.05);
-  DBG;
-  tg->Generate(10.0, 4.0);
-  for (int i = 0; i < 10; i += 1) {
-    tg->Calculate();
-    DBGf4(tg->m_Vout, tg->m_Pout, tg->m_Aout, tg->m_Jout);
-  }
-}
-*/
