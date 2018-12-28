@@ -325,19 +325,21 @@ DBGf(m_Vinc);
   m_V = V; m_P = P;
  };
 
-#define fff " %8.2f "
-#define fxf " %5.2f "
+#define fff "%.2f " //" %8.2f "
+#define fxf fff //" %5.2f "
+#define sep //"|"
 #define PRg \
 do { \
-  printf(fxf "|", m_Vinc); \
+  printf("plot "); \
+  printf(fxf sep, m_Vinc); \
   for (int i = 0; i < m_filter1.size(); i += 1) { \
     printf(fxf " ", m_filter1[i]); \
   } \
-  printf("|" fxf "|", m_filterSum1); \
+  printf(sep fxf sep, m_filterSum1); \
   for (int i = 0; i < m_filter2.size(); i += 1) { \
-    printf(fxf " ", m_filter2[i]); \
+    printf(fxf, m_filter2[i]); \
   } \
-  printf("|" fxf "|", m_filterSum2); \
+  printf(sep fxf sep, m_filterSum2); \
   printf(fff, m_Vout); \
   printf(fff, m_Pout); \
   printf(fff, m_Aout); \
@@ -346,7 +348,7 @@ do { \
   printf("\n"); \
 } while(0)
 
- void Calculate() {xDBG;
+ void Calculate(double itp = 0) {xDBG;
   double Vprev = m_Vout; // Previous Velocity
   double Aprev = m_Aout; // Previous Acceleration
   double Vinc = m_Vinc;
@@ -391,9 +393,8 @@ int main() {
   DBG;
   TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.05);
   tg->GenerateVelocity(10.0);
-  for (int i = 0; i < 20; i += 1) {
-    if (i == 8) {tg->GenerateVelocity(-10.0);}
-    if (i == 14) {tg->GenerateVelocity(-10.0);}
+  for (int i = 0; i < 200; i += 1) {
+    if (i % 8 == 0) {tg->GenerateVelocity(std::rand() % 20000 / 1000.0 - 8.);}
     tg->Calculate();
   }
 }
