@@ -114,6 +114,8 @@ class SwerveDrive : public RobotDriveBase {
 
   double GetAngle(int index);
   void SetAngle(int index, double angle);
+  double GetDrive(int index);
+  void SetDrive(int index, double drive);
   void NormalizeSpeeds();
   static void RotateVector(double& x, double& y, double angle);
 };

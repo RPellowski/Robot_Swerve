@@ -12,7 +12,7 @@
  *
  *   Use of PID for motors:
  *     PID for steer
- *     no PID for velocity
+ *     PID for velocity
  *     possibly PID for distance in autonomous mode
  *
  *   The objects involved:
@@ -46,10 +46,12 @@
 /*
  * TBD
  * (done) Add encoders for rotation (steering)
- * Add encoders for speed/distance (for kinematics)
- * Add default and settable PID values for rotation
- * Add compensation for rotation near discontinuity (0/360)
- * Add default and settable PID values for speed (maybe)
+ * (done) Add encoders for speed/distance (for kinematics)
+ * (done) Add default PID values for rotation
+ * Add settable PID values for rotation
+ * (done) Add compensation for rotation near discontinuity (0/360)
+ * (done) Add default PID values for drive
+ * Add settable PID values for drive
  * Add reverse kinematics for calculation of location
  * Add (non-linear) scaling on speed inputs
  * Add (non-linear) scaling on rotation inputs
@@ -60,7 +62,7 @@
  * (done) Add encoder inversion and type
  * (done) Enable motor safety? where?
  * Reset previous angle with drive = 0
- * Use velocity PID for steering
+ * Use positional PID for steering
  * Use velocity PID for drive
  * Override PIDController::Calculate
  * Use RTC in Calculate
@@ -70,6 +72,7 @@
  * Initialize methods
  *   ResetEncoders
  *   SetLinearPower?
+ * Gradual enablement of PID features during build
  *
  * Test mode
  *  Single wheel direction
@@ -556,6 +559,10 @@ constexpr double kDriveD = 0.;
 constexpr double kAngleDistancePerPulse = 360.0 / 1000.0;
 //constexpr int kAngleSamplesToAverage = 127;
 
+//constexpr double kDriveTolerance = 0.2;
+constexpr double kDriveDistancePerPulse = 1.;
+//constexpr int kDriveSamplesToAverage = 127;
+
 SwerveDrive::SwerveDrive() {
   DBG;
   // Create motors
@@ -569,31 +576,39 @@ SwerveDrive::SwerveDrive() {
   m_steer[RR] = new WPI_TalonSRX(RR_STEER_MOTOR_ID);
 
   // Create encoders
-  m_angleEnc[FL] = new Encoder(
-                       FL_STEER_ENCODER_CHAN_A,   FL_STEER_ENCODER_CHAN_B,
-                       FL_STEER_ENCODER_REVERSED, FL_STEER_ENCODER_TYPE);
-  m_angleEnc[RL] = new Encoder(
-                       RL_STEER_ENCODER_CHAN_A,   RL_STEER_ENCODER_CHAN_B,
-                       RL_STEER_ENCODER_REVERSED, RL_STEER_ENCODER_TYPE);
-  m_angleEnc[FR] = new Encoder(
-                       FR_STEER_ENCODER_CHAN_A,   FR_STEER_ENCODER_CHAN_B,
-                       FR_STEER_ENCODER_REVERSED, FR_STEER_ENCODER_TYPE);
-  m_angleEnc[RR] = new Encoder(
-                       RR_STEER_ENCODER_CHAN_A,   RR_STEER_ENCODER_CHAN_B,
-                       RR_STEER_ENCODER_REVERSED, RR_STEER_ENCODER_TYPE);
+  m_angleEnc[FL] = new Encoder(FL_STEER_ENCODER_CHAN_A,
+                               FL_STEER_ENCODER_CHAN_B,
+                               FL_STEER_ENCODER_REVERSED,
+                               FL_STEER_ENCODER_TYPE);
+  m_angleEnc[RL] = new Encoder(RL_STEER_ENCODER_CHAN_A,
+                               RL_STEER_ENCODER_CHAN_B,
+                               RL_STEER_ENCODER_REVERSED,
+                               RL_STEER_ENCODER_TYPE);
+  m_angleEnc[FR] = new Encoder(FR_STEER_ENCODER_CHAN_A,
+                               FR_STEER_ENCODER_CHAN_B,
+                               FR_STEER_ENCODER_REVERSED,
+                               FR_STEER_ENCODER_TYPE);
+  m_angleEnc[RR] = new Encoder(RR_STEER_ENCODER_CHAN_A,
+                               RR_STEER_ENCODER_CHAN_B,
+                               RR_STEER_ENCODER_REVERSED,
+                               RR_STEER_ENCODER_TYPE);
 
-  m_driveEnc[FL] = new Encoder(
-                       FL_DRIVE_ENCODER_CHAN_A,   FL_DRIVE_ENCODER_CHAN_B,
-                       FL_DRIVE_ENCODER_REVERSED, FL_DRIVE_ENCODER_TYPE);
-  m_driveEnc[RL] = new Encoder(
-                       RL_DRIVE_ENCODER_CHAN_A,   RL_DRIVE_ENCODER_CHAN_B,
-                       RL_DRIVE_ENCODER_REVERSED, RL_DRIVE_ENCODER_TYPE);
-  m_driveEnc[FR] = new Encoder(
-                       FR_DRIVE_ENCODER_CHAN_A,   FR_DRIVE_ENCODER_CHAN_B,
-                       FR_DRIVE_ENCODER_REVERSED, FR_DRIVE_ENCODER_TYPE);
-  m_driveEnc[RR] = new Encoder(
-                       RR_DRIVE_ENCODER_CHAN_A,   RR_DRIVE_ENCODER_CHAN_B,
-                       RR_DRIVE_ENCODER_REVERSED, RR_DRIVE_ENCODER_TYPE);
+  m_driveEnc[FL] = new Encoder(FL_DRIVE_ENCODER_CHAN_A,
+                               FL_DRIVE_ENCODER_CHAN_B,
+                               FL_DRIVE_ENCODER_REVERSED,
+                               FL_DRIVE_ENCODER_TYPE);
+  m_driveEnc[RL] = new Encoder(RL_DRIVE_ENCODER_CHAN_A,
+                               RL_DRIVE_ENCODER_CHAN_B,
+                               RL_DRIVE_ENCODER_REVERSED,
+                               RL_DRIVE_ENCODER_TYPE);
+  m_driveEnc[FR] = new Encoder(FR_DRIVE_ENCODER_CHAN_A,
+                               FR_DRIVE_ENCODER_CHAN_B,
+                               FR_DRIVE_ENCODER_REVERSED,
+                               FR_DRIVE_ENCODER_TYPE);
+  m_driveEnc[RR] = new Encoder(RR_DRIVE_ENCODER_CHAN_A,
+                               RR_DRIVE_ENCODER_CHAN_B,
+                               RR_DRIVE_ENCODER_REVERSED,
+                               RR_DRIVE_ENCODER_TYPE);
 
   // Set dimensions
   m_base_width = BASE_WIDTH;
@@ -630,36 +645,20 @@ SwerveDrive::SwerveDrive() {
   m_wheel[FR]->DriveOutputScale(FR_DRIVE_MOTOR_SCALE);
   m_wheel[RR]->DriveOutputScale(RR_DRIVE_MOTOR_SCALE);
 
-#define noVELOCITY_PID
 
     // Inner objects to support PIDController (needs PIDSource and PIDOutput)
     class AnglePIDSource : public PIDSource {
      public:
       SwerveDrive* m_swerve;
       int m_index;
-#ifdef VELOCITY_PID
-      double m_prev;
-#endif
       AnglePIDSource(SwerveDrive* swerve, int index) : PIDSource() {
         DBGv(index);
         m_swerve = swerve;
         m_index = index;
-#ifdef VELOCITY_PID
-        m_pidSource = PIDSourceType::kRate;
-        m_prev = 0;
-#endif
       }
       double PIDGet() {
-#ifdef VELOCITY_PID
-        double next = m_swerve->GetAngle(m_index);
-        double rate = Wheel::AngleModulus(next - m_prev);
-        DBGf3(m_prev, next, rate);
-        m_prev = next;
-        return rate;
-#else
         DBG;
         return m_swerve->GetAngle(m_index);
-#endif
       }
       void SetPIDSourceType(PIDSourceType pidSource) {
         DBG;
@@ -682,12 +681,52 @@ SwerveDrive::SwerveDrive() {
       }
     };
 
+    class DrivePIDSource : public PIDSource {
+     public:
+      SwerveDrive* m_swerve;
+      int m_index;
+      double m_prev;
+      DrivePIDSource(SwerveDrive* swerve, int index) : PIDSource() {
+        DBGv(index);
+        m_swerve = swerve;
+        m_index = index;
+        m_pidSource = PIDSourceType::kRate;
+        m_prev = 0;
+      }
+      double PIDGet() {
+        double next = m_swerve->GetDrive(m_index);
+        double rate = next - m_prev;
+        DBGf3(m_prev, next, rate);
+        m_prev = next;
+        return rate;
+      }
+      void SetPIDSourceType(PIDSourceType pidSource) {
+        DBG;
+        // No-op - Prevent change from intended setting of kDisplacement or kRate
+      }
+    };
+
+    class DrivePIDOutput : public PIDOutput {
+     public:
+      SwerveDrive* m_swerve;
+      int m_index;
+      DrivePIDOutput(SwerveDrive* swerve, int index) : PIDOutput() {
+        DBGv(index);
+        m_swerve = swerve;
+        m_index = index;
+      }
+      void PIDWrite(double d) {
+        DBGf(d);
+        m_swerve->SetDrive(m_index, d);
+      }
+    };
+
   // Create PID controllers
   for (size_t i = 0; i < kWheels; i++) {
     m_anglePidIn[i] = new AnglePIDSource(this, i);
     m_anglePidOut[i] = new AnglePIDOutput(this, i);
     m_anglePid[i] = new PIDController(m_angleP, m_angleI, m_angleD,
-                      m_anglePidIn[i], m_anglePidOut[i]);
+                                      m_anglePidIn[i], m_anglePidOut[i]);
     m_anglePid[i]->SetContinuous();
     m_anglePid[i]->SetInputRange(-180, 180);
     m_anglePid[i]->SetOutputRange(-1, 1);
@@ -696,6 +735,17 @@ SwerveDrive::SwerveDrive() {
     // m_anglePid[i]->SetPercentTolerance(kAngleTolerance);
     m_angleEnc[i]->SetDistancePerPulse(kAngleDistancePerPulse);
     // m_angleEnc[i]->SetSamplesToAverage(kAngleSamplesToAverage);
+
+    m_drivePidIn[i] = new DrivePIDSource(this, i);
+    m_drivePidOut[i] = new DrivePIDOutput(this, i);
+    m_drivePid[i] = new PIDController(m_driveP, m_driveI, m_driveD,
+                                      m_drivePidIn[i], m_drivePidOut[i]);
+    m_drivePid[i]->SetInputRange(-1, 1);
+    m_drivePid[i]->SetOutputRange(-1, 1);
+    m_drivePid[i]->SetSetpoint(0);
+    m_drivePid[i]->Enable();
+    m_driveEnc[i]->SetDistancePerPulse(kDriveDistancePerPulse);
+    // m_driveEnc[i]->SetSamplesToAverage(kDriveSamplesToAverage);
   };
 
   for (size_t i = 0; i < kWheels; i++) {
@@ -711,15 +761,28 @@ SwerveDrive::SwerveDrive() {
 SwerveDrive::~SwerveDrive() {
   DBG;
   for (size_t i = 0; i < kWheels; i++) {
+    // Math calculation objects
     delete m_wheel[i];
+
+    // Angle Controller objects
     m_anglePid[i]->Disable();
     delete m_anglePid[i];
     delete m_anglePidIn[i];
     delete m_anglePidOut[i];
+
+    // Drive Controller objects
+    m_drivePid[i]->Disable();
+    delete m_drivePid[i];
+    delete m_drivePidIn[i];
+    delete m_drivePidOut[i];
+
+    // Motor objects
     delete m_steer[i];
     delete m_drive[i];
+
+    // Encoder objects
     delete m_angleEnc[i];
-    if (m_driveEnc[i] != nullptr) delete m_driveEnc[i];
+    delete m_driveEnc[i];
   }
 }
 
@@ -1041,6 +1104,43 @@ void SwerveDrive::SetAngle(int index, double angle) {
   if (m_steer[index] != nullptr) {
     double d = MapAngleOut(angle * STEER_MOTORS_SCALE);
     m_steer[index]->Set(d);
+  }
+}
+
+/*
+ * GetDrive
+ *   Called by a PIDSource object to get the current drive motor as
+ *     measured by its encoder - feeds into the PIDController
+ *
+ * Inputs
+ *   index - which drive motor / encoder
+ *
+ * Outputs
+ *   drive - current encoder value
+ */
+double SwerveDrive::GetDrive(int index) {
+  double drive = 0.;
+  if (m_driveEnc[index] != nullptr) {
+    drive = m_driveEnc[index]->GetDistance();
+  }
+  DBGST("index %d drive" f1f, index, drive);
+  return drive;
+}
+
+/*
+ * SetDrive
+ *   Called by a PIDOutput object to set a drive motor speed to achieve the
+ *     desired velocity objective - based on calculation of the PIDController
+ *
+ * Inputs
+ *   index - which drive motor
+ *   drive - motor speed to set
+ */
+void SwerveDrive::SetDrive(int index, double drive) {
+  DBGST("index %d drive" f1f, index, drive);
+  if (m_drive[index] != nullptr) {
+    double d = MapDriveOut(drive * DRIVE_MOTORS_SCALE);
+    m_drive[index]->Set(d);
   }
 }
 
