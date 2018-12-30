@@ -75,7 +75,7 @@ class SwerveDrive : public RobotDriveBase {
   /**
    * DriveTank method for Swerve platform.
    *
-   * This mode is weird- convert essentially a polar input into right and left
+   * This mode is unconventional- convert a polar input into right and left
    * speeds.
    * Essentially a drop-in replacement but will have a different feel and
    * resulting behavior.
@@ -94,14 +94,20 @@ class SwerveDrive : public RobotDriveBase {
  private:
   SpeedController* m_drive[kWheels];
   SpeedController* m_steer[kWheels];
-  PIDSource* m_pidIn[kWheels];
-  PIDOutput* m_pidOut[kWheels];
-  PIDController* m_pid[kWheels];
-  Encoder* m_angle[kWheels];
-  Encoder* m_distance[kWheels];
+  PIDSource* m_anglePidIn[kWheels];
+  PIDOutput* m_anglePidOut[kWheels];
+  PIDController* m_anglePid[kWheels];
+  PIDSource* m_drivePidIn[kWheels];
+  PIDOutput* m_drivePidOut[kWheels];
+  PIDController* m_drivePid[kWheels];
+  Encoder* m_angleEnc[kWheels];
+  Encoder* m_driveEnc[kWheels];
   double m_angleP;
   double m_angleI;
   double m_angleD;
+  double m_driveP;
+  double m_driveI;
+  double m_driveD;
   double m_base_width;
   double m_base_length;
   Wheel *m_wheel[kWheels];

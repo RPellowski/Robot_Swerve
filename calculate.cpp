@@ -394,7 +394,7 @@ int main() {
   TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.05);
   tg->GenerateVelocity(10.0);
   for (int i = 0; i < 200; i += 1) {
-    if (i % 8 == 0) {tg->GenerateVelocity(std::rand() % 20000 / 1000.0 - 8.);}
+    if (i % 8 == 0) {tg->GenerateVelocity(std::rand() % 20000 / 1000.0 - 9.);}
     tg->Calculate();
   }
 }

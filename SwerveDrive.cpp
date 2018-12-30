@@ -89,6 +89,12 @@
 #include "SmartDashboard/SendableBuilder.h"
 
 #ifndef LOCAL_TEST
+#undef DBG
+#undef DBGf
+#undef DBGf2
+#undef DBGf3
+#undef DBGf4
+#undef DBGST
 #define DBG
 #define DBGf
 #define DBGf2
@@ -483,15 +489,15 @@ constexpr double DRIVE_MOTORS_SCALE = 1.0;
 // Any other tuning could be done with PID
 constexpr double STEER_MOTORS_SCALE = 1.0;
 
-//constexpr int FL_DRIVE_ENCODER_CHAN_A = 21;
-//constexpr int RL_DRIVE_ENCODER_CHAN_A = 22;
-//constexpr int FR_DRIVE_ENCODER_CHAN_A = 23;
-//constexpr int RR_DRIVE_ENCODER_CHAN_A = 24;
+constexpr int FL_DRIVE_ENCODER_CHAN_A = 21;
+constexpr int RL_DRIVE_ENCODER_CHAN_A = 22;
+constexpr int FR_DRIVE_ENCODER_CHAN_A = 23;
+constexpr int RR_DRIVE_ENCODER_CHAN_A = 24;
 
-//constexpr int FL_DRIVE_ENCODER_CHAN_B = 25;
-//constexpr int RL_DRIVE_ENCODER_CHAN_B = 26;
-//constexpr int FR_DRIVE_ENCODER_CHAN_B = 27;
-//constexpr int RR_DRIVE_ENCODER_CHAN_B = 28;
+constexpr int FL_DRIVE_ENCODER_CHAN_B = 25;
+constexpr int RL_DRIVE_ENCODER_CHAN_B = 26;
+constexpr int FR_DRIVE_ENCODER_CHAN_B = 27;
+constexpr int RR_DRIVE_ENCODER_CHAN_B = 28;
 
 constexpr int FL_STEER_ENCODER_CHAN_A = 11;
 constexpr int RL_STEER_ENCODER_CHAN_A = 12;
@@ -508,6 +514,11 @@ constexpr bool RL_STEER_ENCODER_REVERSED = false;
 constexpr bool FR_STEER_ENCODER_REVERSED = false;
 constexpr bool RR_STEER_ENCODER_REVERSED = false;
 
+constexpr bool FL_DRIVE_ENCODER_REVERSED = false;
+constexpr bool RL_DRIVE_ENCODER_REVERSED = false;
+constexpr bool FR_DRIVE_ENCODER_REVERSED = false;
+constexpr bool RR_DRIVE_ENCODER_REVERSED = false;
+
 constexpr CounterBase::EncodingType \
   STEER_ENCODER_COMMON_TYPE = CounterBase::EncodingType::k4X;
 constexpr CounterBase::EncodingType \
@@ -519,6 +530,17 @@ constexpr CounterBase::EncodingType \
 constexpr CounterBase::EncodingType \
   RR_STEER_ENCODER_TYPE = STEER_ENCODER_COMMON_TYPE;
 
+constexpr CounterBase::EncodingType \
+  DRIVE_ENCODER_COMMON_TYPE = CounterBase::EncodingType::k4X;
+constexpr CounterBase::EncodingType
+  FL_DRIVE_ENCODER_TYPE = DRIVE_ENCODER_COMMON_TYPE;
+constexpr CounterBase::EncodingType \
+  RL_DRIVE_ENCODER_TYPE = DRIVE_ENCODER_COMMON_TYPE;
+constexpr CounterBase::EncodingType \
+  FR_DRIVE_ENCODER_TYPE = DRIVE_ENCODER_COMMON_TYPE;
+constexpr CounterBase::EncodingType \
+  RR_DRIVE_ENCODER_TYPE = DRIVE_ENCODER_COMMON_TYPE;
+
 constexpr double BASE_WIDTH = 24.5;
 constexpr double BASE_LENGTH = 36.5;
 
@@ -526,9 +548,9 @@ constexpr double kAngleP = 1.;
 constexpr double kAngleI = 0.;
 constexpr double kAngleD = 0.;
 
-//constexpr double kDistanceP = 1.;
-//constexpr double kDistanceI = 0.;
-//constexpr double kDistanceD = 0.;
+constexpr double kDriveP = 1.;
+constexpr double kDriveI = 0.;
+constexpr double kDriveD = 0.;
 
 //constexpr double kAngleTolerance = 0.25 / 360.0;
 constexpr double kAngleDistancePerPulse = 360.0 / 1000.0;
@@ -547,19 +569,31 @@ SwerveDrive::SwerveDrive() {
   m_steer[RR] = new WPI_TalonSRX(RR_STEER_MOTOR_ID);
 
   // Create encoders
-  m_angle[FL] = new Encoder(FL_STEER_ENCODER_CHAN_A,   FL_STEER_ENCODER_CHAN_B,
-                            FL_STEER_ENCODER_REVERSED, FL_STEER_ENCODER_TYPE);
-  m_angle[RL] = new Encoder(RL_STEER_ENCODER_CHAN_A,   RL_STEER_ENCODER_CHAN_B,
-                            RL_STEER_ENCODER_REVERSED, RL_STEER_ENCODER_TYPE);
-  m_angle[FR] = new Encoder(FR_STEER_ENCODER_CHAN_A,   FR_STEER_ENCODER_CHAN_B,
-                            FR_STEER_ENCODER_REVERSED, FR_STEER_ENCODER_TYPE);
-  m_angle[RR] = new Encoder(RR_STEER_ENCODER_CHAN_A,   RR_STEER_ENCODER_CHAN_B,
-                            RR_STEER_ENCODER_REVERSED, RR_STEER_ENCODER_TYPE);
+  m_angleEnc[FL] = new Encoder(
+                       FL_STEER_ENCODER_CHAN_A,   FL_STEER_ENCODER_CHAN_B,
+                       FL_STEER_ENCODER_REVERSED, FL_STEER_ENCODER_TYPE);
+  m_angleEnc[RL] = new Encoder(
+                       RL_STEER_ENCODER_CHAN_A,   RL_STEER_ENCODER_CHAN_B,
+                       RL_STEER_ENCODER_REVERSED, RL_STEER_ENCODER_TYPE);
+  m_angleEnc[FR] = new Encoder(
+                       FR_STEER_ENCODER_CHAN_A,   FR_STEER_ENCODER_CHAN_B,
+                       FR_STEER_ENCODER_REVERSED, FR_STEER_ENCODER_TYPE);
+  m_angleEnc[RR] = new Encoder(
+                       RR_STEER_ENCODER_CHAN_A,   RR_STEER_ENCODER_CHAN_B,
+                       RR_STEER_ENCODER_REVERSED, RR_STEER_ENCODER_TYPE);
 
-  m_distance[FL] = nullptr; // = new Encoder(FL_DRIVE_ENCODER_CHAN_A, FL_DRIVE_ENCODER_CHAN_B);
-  m_distance[RL] = nullptr; // = new Encoder(RL_DRIVE_ENCODER_CHAN_A, RL_DRIVE_ENCODER_CHAN_B);
-  m_distance[FR] = nullptr; // = new Encoder(FR_DRIVE_ENCODER_CHAN_A, FR_DRIVE_ENCODER_CHAN_B);
-  m_distance[RR] = nullptr; // = new Encoder(RR_DRIVE_ENCODER_CHAN_A, RR_DRIVE_ENCODER_CHAN_B);
+  m_driveEnc[FL] = new Encoder(
+                       FL_DRIVE_ENCODER_CHAN_A,   FL_DRIVE_ENCODER_CHAN_B,
+                       FL_DRIVE_ENCODER_REVERSED, FL_DRIVE_ENCODER_TYPE);
+  m_driveEnc[RL] = new Encoder(
+                       RL_DRIVE_ENCODER_CHAN_A,   RL_DRIVE_ENCODER_CHAN_B,
+                       RL_DRIVE_ENCODER_REVERSED, RL_DRIVE_ENCODER_TYPE);
+  m_driveEnc[FR] = new Encoder(
+                       FR_DRIVE_ENCODER_CHAN_A,   FR_DRIVE_ENCODER_CHAN_B,
+                       FR_DRIVE_ENCODER_REVERSED, FR_DRIVE_ENCODER_TYPE);
+  m_driveEnc[RR] = new Encoder(
+                       RR_DRIVE_ENCODER_CHAN_A,   RR_DRIVE_ENCODER_CHAN_B,
+                       RR_DRIVE_ENCODER_REVERSED, RR_DRIVE_ENCODER_TYPE);
 
   // Set dimensions
   m_base_width = BASE_WIDTH;
@@ -570,10 +604,15 @@ SwerveDrive::SwerveDrive() {
   m_angleI = kAngleI;
   m_angleD = kAngleD;
 
+  m_driveP = kDriveP;
+  m_driveI = kDriveI;
+  m_driveD = kDriveD;
+
   // Assume center of robot is geometric center of wheels
   // And geometric center is center of gravity for robot
   double l = m_base_length / 2.;
   double w = m_base_width / 2.;
+
   // The following normalizes rotation
   double p = 1.0 / std::sqrt(l * l + w * w);
   m_wheel[FL] = new Wheel( l,-w, p);
@@ -645,17 +684,18 @@ SwerveDrive::SwerveDrive() {
 
   // Create PID controllers
   for (size_t i = 0; i < kWheels; i++) {
-    m_pidIn[i] = new AnglePIDSource(this, i);
-    m_pidOut[i] = new AnglePIDOutput(this, i);
-    m_pid[i] = new PIDController(m_angleP, m_angleI, m_angleD, m_pidIn[i], m_pidOut[i]);
-    m_pid[i]->SetContinuous();
-    m_pid[i]->SetInputRange(-180, 180);
-    m_pid[i]->SetOutputRange(-1, 1);
-    m_pid[i]->SetSetpoint(0);
-    m_pid[i]->Enable();
-    // m_pid[i]->SetPercentTolerance(kAngleTolerance);
-    m_angle[i]->SetDistancePerPulse(kAngleDistancePerPulse);
-    // m_angle[i]->SetSamplesToAverage(kAngleSamplesToAverage);
+    m_anglePidIn[i] = new AnglePIDSource(this, i);
+    m_anglePidOut[i] = new AnglePIDOutput(this, i);
+    m_anglePid[i] = new PIDController(m_angleP, m_angleI, m_angleD,
+                      m_anglePidIn[i], m_anglePidOut[i]);
+    m_anglePid[i]->SetContinuous();
+    m_anglePid[i]->SetInputRange(-180, 180);
+    m_anglePid[i]->SetOutputRange(-1, 1);
+    m_anglePid[i]->SetSetpoint(0);
+    m_anglePid[i]->Enable();
+    // m_anglePid[i]->SetPercentTolerance(kAngleTolerance);
+    m_angleEnc[i]->SetDistancePerPulse(kAngleDistancePerPulse);
+    // m_angleEnc[i]->SetSamplesToAverage(kAngleSamplesToAverage);
   };
 
   for (size_t i = 0; i < kWheels; i++) {
@@ -672,14 +712,14 @@ SwerveDrive::~SwerveDrive() {
   DBG;
   for (size_t i = 0; i < kWheels; i++) {
     delete m_wheel[i];
-    m_pid[i]->Disable();
-    delete m_pid[i];
-    delete m_pidIn[i];
-    delete m_pidOut[i];
+    m_anglePid[i]->Disable();
+    delete m_anglePid[i];
+    delete m_anglePidIn[i];
+    delete m_anglePidOut[i];
     delete m_steer[i];
     delete m_drive[i];
-    delete m_angle[i];
-    if (m_distance[i] != nullptr) delete m_distance[i];
+    delete m_angleEnc[i];
+    if (m_driveEnc[i] != nullptr) delete m_driveEnc[i];
   }
 }
 
@@ -799,7 +839,7 @@ DBGv(steerTravel);
     m_angle[i]->SetRaw(m_angle[i]->GetRaw()+steerTravel);
     DBGon = false;
 #else
-    m_pid[i]->SetSetpoint(m_wheel[i]->Angle());
+    m_anglePid[i]->SetSetpoint(m_wheel[i]->Angle());
 #endif
   }
 
@@ -980,8 +1020,8 @@ void SwerveDrive::InitSendable(SendableBuilder& builder) {
  */
 double SwerveDrive::GetAngle(int index) {
   double angle = 0.;
-  if (m_angle[index] != nullptr) {
-    angle = m_angle[index]->GetDistance();
+  if (m_angleEnc[index] != nullptr) {
+    angle = m_angleEnc[index]->GetDistance();
   }
   DBGST("index %d angle" f1f, index, angle);
   return angle;
