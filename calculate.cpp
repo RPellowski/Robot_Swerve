@@ -17,6 +17,7 @@ constexpr double itp = 0.025;   // Loop time, ms
 #include <chrono>
 #include <libgen.h>
 #include <stdio.h>
+#include <thread>
 #define DBG      DBGST(" ")
 #define DBGz(a)  DBGST("%s",(a))
 std::regex re1("\\([^\\)]*\\)");
@@ -275,6 +276,8 @@ public:
  double m_filterSum1;
  double m_filterSum2;
 
+ bool m_active;
+
  /*
   * Constructor
   *   Create the Generator object for data to be used in feedforward system
@@ -307,8 +310,17 @@ public:
   m_Vinc = 0;
   m_filterSum1 = 0;
   m_filterSum2 = 0;
+
+  m_active = false;
  };
- ~TargetGenerator() {DBG;};
+ void Activate() { DBG;
+  m_active = true;
+ };
+ void Deactivate() {DBG;
+  m_active = false;
+ };
+
+ ~TargetGenerator() {DBG; Deactivate(); };
  void SetGains(double kPff, double kVff, double kAff, double kJff) {
   DBGf4(kPff, kVff, kAff, kJff);
   m_kPff = kPff; m_kVff = kVff; m_kAff = kAff; m_kJff = kJff;
@@ -379,6 +391,20 @@ PRg;
  };
 };
 
+// Ref: https://www.geeksforgeeks.org/multithreading-in-cpp/
+// Define the class of function object and override ()
+class callback {
+ public:
+  void operator()(TargetGenerator *t) {
+    while (t->m_active) {
+      t->Calculate();
+      if (t->m_active) {
+        std::this_thread::sleep_for(std::chrono::milliseconds((int) (t->m_itp * 1000)));
+      }
+    }
+  }
+};
+
 /*
  * This simulation maintains a buffer of calculated values of position, velocity,
  * acceleration and jerk as a feedforward target generator. It is used in
@@ -388,14 +414,22 @@ PRg;
  * T2 = time to achieve full acceleration)
  * As the setpoint is updated, the inputs to filters are adjusted.
  */
-
 int main() {
+  double itp = 0.05;
   DBG;
-  TargetGenerator *tg = new TargetGenerator(0.2, 0.1, 0.05);
+  TargetGenerator *tg = new TargetGenerator(0.2, 0.1, itp);
+  tg->Activate();
   tg->GenerateVelocity(10.0);
-  for (int i = 0; i < 200; i += 1) {
-    if (i % 8 == 0) {tg->GenerateVelocity(std::rand() % 20000 / 1000.0 - 9.);}
-    tg->Calculate();
+  std::thread th1(callback(), tg);
+  int waittime = 50;
+  int x = (int) (200. / ((float) waittime / (itp * 1000)));
+  DBGv(x);
+  for (int i = 0; i < x; i += 1) {
+   std::this_thread::sleep_for(std::chrono::milliseconds(waittime));
+   tg->GenerateVelocity(std::rand() % 20000 / 1000.0 - 10.);
   }
+  tg->Deactivate();
+  th1.join();
+  delete tg;
 }
 

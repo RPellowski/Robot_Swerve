@@ -21,7 +21,7 @@
  *       Calculates angles and speeds given input vectors on three axes
  *     SwerveDrive - like MecanumDrive, derived from RobotDriveBase object
  *       Methods to implement
- *         DriveCartesian, DriveAckermann
+ *         DriveCartesian, DriveAckermann, DriveTank
  *         StopMotor, GetDescription, InitSendable
  *       Methods called
  *         AddChild, SetName, Set, Feed
