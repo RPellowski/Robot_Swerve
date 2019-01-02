@@ -453,6 +453,23 @@ void Wheel::DriveOutputScale(double drive_output_scale) {
 };
 
 /* ======================================================================== *
+                         PID Controller Override
+ * ======================================================================== */
+class PositionPIDController : public PIDController {
+ public:
+  PositionPIDController(double p, double i, double d,
+                        PIDSource* source, PIDOutput* output,
+                        double period = 0.05)
+  : PIDController(p, i, d, 0.0, *source, *output, period ) { DBG; }
+
+};
+
+#define VelocityPIDController PositionPIDController
+
+class xVelocityPIDController : PIDController {
+};
+
+/* ======================================================================== *
                              Swerve Drive
  * ======================================================================== */
 
@@ -725,8 +742,8 @@ SwerveDrive::SwerveDrive() {
   for (size_t i = 0; i < kWheels; i++) {
     m_anglePidIn[i] = new AnglePIDSource(this, i);
     m_anglePidOut[i] = new AnglePIDOutput(this, i);
-    m_anglePid[i] = new PIDController(m_angleP, m_angleI, m_angleD,
-                                      m_anglePidIn[i], m_anglePidOut[i]);
+    m_anglePid[i] = new PositionPIDController(m_angleP, m_angleI, m_angleD,
+                                              m_anglePidIn[i], m_anglePidOut[i]);
     m_anglePid[i]->SetContinuous();
     m_anglePid[i]->SetInputRange(-180, 180);
     m_anglePid[i]->SetOutputRange(-1, 1);
@@ -738,8 +755,8 @@ SwerveDrive::SwerveDrive() {
 
     m_drivePidIn[i] = new DrivePIDSource(this, i);
     m_drivePidOut[i] = new DrivePIDOutput(this, i);
-    m_drivePid[i] = new PIDController(m_driveP, m_driveI, m_driveD,
-                                      m_drivePidIn[i], m_drivePidOut[i]);
+    m_drivePid[i] = new VelocityPIDController(m_driveP, m_driveI, m_driveD,
+                                              m_drivePidIn[i], m_drivePidOut[i]);
     m_drivePid[i]->SetInputRange(-1, 1);
     m_drivePid[i]->SetOutputRange(-1, 1);
     m_drivePid[i]->SetSetpoint(0);
