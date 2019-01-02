@@ -421,9 +421,10 @@ int main() {
   tg->Activate();
   tg->GenerateVelocity(10.0);
   std::thread th1(callback(), tg);
-  int waittime = 50;
+  int waittime = 300;
   int x = (int) (200. / ((float) waittime / (itp * 1000)));
   DBGv(x);
+  std::srand(std::time(NULL));
   for (int i = 0; i < x; i += 1) {
    std::this_thread::sleep_for(std::chrono::milliseconds(waittime));
    tg->GenerateVelocity(std::rand() % 20000 / 1000.0 - 10.);
