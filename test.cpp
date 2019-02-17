@@ -1398,26 +1398,24 @@ constexpr double HingeRightKp = 1.0;
 constexpr double HingeRightKi = 0.0;
 constexpr double HingeRightKd = 0.0;
 
-#if 0
-class HingePIDController { //: public PIDController {
- public:
-  HingePIDController(double Kp, double Ki, double Kd,
-                    PIDSource* source, PIDOutput* output,
-                    double period = 0.05)
-   /*: PIDController(Kp, Ki, Kd, 0.0, source, output, period)*/ { DBG; }
-};
-#endif
 class HingePIDSource : public PIDSource {
-  frc::AnalogInput *m_Pot;
+  frc::AnalogInput *m_pot;
+  double m_min;
+  double m_range;
  public:
-  HingePIDSource(frc::AnalogInput *Pot) : PIDSource() {
-    m_Pot = Pot;
+  HingePIDSource(frc::AnalogInput *pot, double min, double range)
+    : PIDSource() {
+    m_min = min;
+    m_range = range;
+    m_pot = pot;
+    m_pidSource = PIDSourceType::kDisplacement;
     DBG;
   }
   double PIDGet() {
-    double v = m_Pot->GetVoltage();
+    double v = m_pot->GetVoltage();
     DBGf(v);
-    // Do some manipulation of v
+    // Scale result to [0.0, 1.0]
+    v = (v - m_min) / m_range;
     return v;
   }
   void SetPIDSourceType(PIDSourceType pidSource) {
@@ -1425,29 +1423,42 @@ class HingePIDSource : public PIDSource {
     // No-op (do not change from default)
   }
 };
+
 class HingePIDOutput : public PIDOutput {
-  WPI_TalonSRX *m_Motor;
+  WPI_TalonSRX *m_motor;
  public:
-  HingePIDOutput(WPI_TalonSRX *Motor) : PIDOutput() {
-    m_Motor = Motor;
+  HingePIDOutput(WPI_TalonSRX *motor) : PIDOutput() {
+    m_motor = motor;
     DBG;
   }
   void PIDWrite(double d) {
     DBGf(d);
-    m_Motor->Set(d);
+    m_motor->Set(d);
   }
 };
 
 int main() {
-  HingePIDSource *HingeInL = new HingePIDSource(hingePotL);
-  HingePIDSource *HingeInR = new HingePIDSource(hingePotR);
+  HingePIDSource *HingeInL = new HingePIDSource(hingePotL, HingeMinLeft, HingeMaxLeft - HingeMinLeft);
+  HingePIDSource *HingeInR = new HingePIDSource(hingePotR, HingeMinRight, HingeMaxRight - HingeMinRight);
   HingePIDOutput *HingeOutL = new HingePIDOutput(hingeMotorL);
   HingePIDOutput *HingeOutR = new HingePIDOutput(hingeMotorR);
+  PIDController HCL =
+    PIDController(HingeLeftKp, HingeLeftKi, HingeLeftKd,
+                  *HingeInL, *HingeOutL);
   PIDController HCR =
     PIDController(HingeRightKp, HingeRightKi, HingeRightKd,
-                       *HingeInR, *HingeOutR);
-  DBG;
-
+                  *HingeInR, *HingeOutR);
+  DBGz("-----------------");
+  HCL.SetContinuous();
+  HCL.SetInputRange(-1.0, 1.0);
+  HCL.SetOutputRange(0.0, 1.0);
+  HCL.Enable();
+  HCL.SetSetpoint(0.5);
+  DBGz("-----------------");
+  HCL.Calculate();
+  DBGz("-----------------");
+  HCL.Calculate();
+  DBGz("-----------------");
 }
 #endif // SILLY
 #endif // FOOBAR
