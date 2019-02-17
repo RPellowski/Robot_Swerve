@@ -420,8 +420,8 @@ class PIDBase : public SendableBase, public PIDInterface, public PIDOutput {
   PIDBase(double p, double i, double d, PIDSource& source, PIDOutput& output);
   PIDBase(double p, double i, double d, double f, PIDSource& source, PIDOutput& output);
   ~PIDBase() override;
-  PIDBase(const PIDBase&) = delete;
-  PIDBase& operator=(const PIDBase) = delete;
+  PIDBase(PIDBase&&) = default;
+  PIDBase& operator=(PIDBase&&) = default;
   //virtual double Get() const;
   virtual void SetContinuous(bool continuous = true);
   virtual void SetInputRange(double minimumInput, double maximumInput);
@@ -720,8 +720,8 @@ class PIDController : public PIDBase, public Controller {
   PIDController(double p, double i, double d,           PIDSource& source, PIDOutput& output, double period = 0.05);
   PIDController(double p, double i, double d, double f, PIDSource& source, PIDOutput& output, double period = 0.05);
   ~PIDController() override;
-  PIDController(const PIDController&) = delete;
-  PIDController& operator=(const PIDController) = delete;
+  PIDController(PIDController&&) = default;
+  PIDController& operator=(PIDController&&) = default;
   void Enable() override;
   void Disable() override;
   void SetEnabled(bool enable);
@@ -1207,6 +1207,8 @@ void RobotDriveBase::Normalize(double wheelSpeeds[], size_t size = 4) {
 // -----------------------------------------------------------------
 using namespace frc;
 
+#define SILLY
+#ifndef SILLY
 #define LOCAL_TEST
 #define SKIP_ROTATION_NORM
 #include "SwerveDrive.h"
@@ -1365,4 +1367,87 @@ bool drive_done = false;
 #endif
 #endif
 }
+#else // SILLY
+namespace frc {
+class AnalogInput {
+ public:
+  AnalogInput(int chan) {DBGv(chan);}
+  double GetVoltage() {return 0.0;}
+};
+}; // namespace
+
+#define HINGE_MAX_LEFT 4.7
+#define HINGE_MIN_LEFT .9
+#define HINGE_MAX_RIGHT 4.7
+#define HINGE_MIN_RIGHT .9
+
+// Hinge Raise/Lower Motor
+WPI_TalonSRX *hingeMotorL = new WPI_TalonSRX{6}; // CAN ID
+WPI_TalonSRX *hingeMotorR = new WPI_TalonSRX(7); // CAN ID
+frc::AnalogInput *hingePotL = new frc::AnalogInput(0);
+frc::AnalogInput *hingePotR = new frc::AnalogInput(1);
+
+constexpr double HingeMaxLeft = 4.7;
+constexpr double HingeMinLeft = 0.9;
+constexpr double HingeMaxRight = 4.7;
+constexpr double HingeMinRight = 0.9;
+constexpr double HingeLeftKp = 1.0;
+constexpr double HingeLeftKi = 0.0;
+constexpr double HingeLeftKd = 0.0;
+constexpr double HingeRightKp = 1.0;
+constexpr double HingeRightKi = 0.0;
+constexpr double HingeRightKd = 0.0;
+
+#if 0
+class HingePIDController { //: public PIDController {
+ public:
+  HingePIDController(double Kp, double Ki, double Kd,
+                    PIDSource* source, PIDOutput* output,
+                    double period = 0.05)
+   /*: PIDController(Kp, Ki, Kd, 0.0, source, output, period)*/ { DBG; }
+};
+#endif
+class HingePIDSource : public PIDSource {
+  frc::AnalogInput *m_Pot;
+ public:
+  HingePIDSource(frc::AnalogInput *Pot) : PIDSource() {
+    m_Pot = Pot;
+    DBG;
+  }
+  double PIDGet() {
+    double v = m_Pot->GetVoltage();
+    DBGf(v);
+    // Do some manipulation of v
+    return v;
+  }
+  void SetPIDSourceType(PIDSourceType pidSource) {
+    DBG;
+    // No-op (do not change from default)
+  }
+};
+class HingePIDOutput : public PIDOutput {
+  WPI_TalonSRX *m_Motor;
+ public:
+  HingePIDOutput(WPI_TalonSRX *Motor) : PIDOutput() {
+    m_Motor = Motor;
+    DBG;
+  }
+  void PIDWrite(double d) {
+    DBGf(d);
+    m_Motor->Set(d);
+  }
+};
+
+int main() {
+  HingePIDSource *HingeInL = new HingePIDSource(hingePotL);
+  HingePIDSource *HingeInR = new HingePIDSource(hingePotR);
+  HingePIDOutput *HingeOutL = new HingePIDOutput(hingeMotorL);
+  HingePIDOutput *HingeOutR = new HingePIDOutput(hingeMotorR);
+  PIDController HCR =
+    PIDController(HingeRightKp, HingeRightKi, HingeRightKd,
+                       *HingeInR, *HingeOutR);
+  DBG;
+
+}
+#endif // SILLY
 #endif // FOOBAR
